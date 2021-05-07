@@ -16,6 +16,8 @@ COPY_TAGS = [ '0002-0002', '0008-0016', '0008-0022', '0008-0023', '0008-0032', '
               '0010-0032', '0010-0040', '0020-0010', '0018-5100', '0018-0060', '0008-0090',
               '0008-0050', '0008-0020', '0008-0030', '0018-0015', '0040-0254', '0018-1030']
 
+CLEAN_ORTHANC = os.getenv('CLEAN_ORTHANC', 0)
+
 def load_header_codes():
   data = {}
   with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'header_codes.json')) as f:
@@ -55,6 +57,14 @@ def post_file_to_orthanc(filedata, filefmt, destination, added_tags, seriesId):
 
   if uploadpdfResponse.status_code == 200:
     print("file successfully sent to orthanc")
+
+    if int(CLEAN_ORTHANC) != 0:
+      pdfData = uploadpdfResponse.json()
+      newSeriesId = pdfData.get("ParentSeries")
+      if not newSeriesId is None:
+        DELETE_pdf = f"{url}/series/{newSeriesId}"
+        requests.delete(DELETE_pdf, json=payload, auth=authOrthanc, headers=header)
+
   else:
     print("unable to sent file to orthanc")
 
@@ -164,9 +174,16 @@ def patch_series_private_meta(seriesId, tags):
   resp = requests.post(POST_modify, json=payloadModify, auth=authOrthanc, headers=header)
 
   if resp.status_code == 200:
+    newSeriesId = resp.json().get("ID")
     print("Successfully updated series", flush=True)
     DELETE_series = url + "/series/" + seriesId
     requests.delete(DELETE_series, auth=authOrthanc, headers=header)
+
+    if (int(CLEAN_ORTHANC) != 0) and (not newSeriesId is None):
+      time.sleep(2)
+      DELETE_series = url + "/series/" + newSeriesId
+      requests.delete(DELETE_series, auth=authOrthanc, headers=header)
+
   else:
     print("unable to update series tags", resp.status_code, flush=True)
 
