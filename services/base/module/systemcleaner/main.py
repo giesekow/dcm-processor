@@ -1,6 +1,7 @@
-import os, shutil
+import os, shutil, requests
 
 DATA = os.getenv('DATA', '/data')
+CLEAN_ORTHANC = os.getenv('CLEAN_ORTHANC', 0)
 
 def worker(jobName, headers, params, added_params, **kwargs):
   try:
@@ -26,3 +27,38 @@ def worker(jobName, headers, params, added_params, **kwargs):
             pass
   except:
     pass
+  
+  if int(CLEAN_ORTHANC) != 0:
+    clean_orthanc(jobName, headers, params, added_params, **kwargs)
+
+def clean_orthanc(jobName, headers, params, added_params, **kwargs):
+  ORTHANC_REST_USERNAME = os.getenv('ORTHANC_REST_USERNAME', "anduin")
+  ORTHANC_REST_PASSWORD = os.getenv('ORTHANC_REST_PASSWORD', "anduin")
+  ORTHANC_REST_URL = os.getenv('ORTHANC_REST_URL', "http://orthanc:8042")
+
+  header = {'content-type': 'application/json'}
+  authOrthanc = (ORTHANC_REST_USERNAME, ORTHANC_REST_PASSWORD)
+  url = ORTHANC_REST_URL
+
+  seriesId = headers.get("seriesId")
+  # Get Series Parent Patient
+  if not seriesId is None:
+    resp = requests.get(f"{url}/series/${seriesId}", auth=authOrthanc, headers=header)
+    if resp.status_code == 200:
+      studyId = resp.json()["ParentStudy"]
+      resp = requests.delete(f"{url}/series/${seriesId}", auth=authOrthanc, headers=header)
+      if resp.status_code == 200:
+        resp = requests.get(f"{url}/studies/${studyId}", auth=authOrthanc, headers=header)
+        if resp.status_code == 200:
+          resp_data = resp.json()
+          series = resp_data["Series"]
+          if len(series) == 0:
+            patientId = resp_data["ParentPatient"]
+            resp = requests.delete(f"{url}/studies/${studyId}", auth=authOrthanc, headers=header)
+            if resp.status_code == 200:
+              resp = requests.get(f"{url}/patients/${patientId}", auth=authOrthanc, headers=header)
+              if resp.status_code == 200:
+                resp_data = resp.json()
+                studies = resp_data["Studies"]
+                if len(studies) == 0:
+                  resp = requests.delete(f"{url}/patients/${patientId}", auth=authOrthanc, headers=header)
