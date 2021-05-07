@@ -41,6 +41,7 @@ def post_file_to_orthanc(filedata, filefmt, destination, added_tags, seriesId):
     "0405,1003" : filefmt,
     "0405,1005" : "dcm-processor",
     "0405,1007" : "pac",
+    "0405,1009" : seriesId
   }
 
   tags.update(added_tags)
@@ -98,7 +99,7 @@ def post_nifti_to_orthanc(path, filefmt, destination, added_tags, seriesId, base
         dicom_meta.append((str(tag).replace("-", "|"), meta.text))
         
       #Set Custom header
-      dicom_meta += [("0405|0010", "DCM-PROCESSOR"), ("0405|1001", "store-data"), ("0405|1003", filefmt), ("0405|1005", "dcm-processor"), ("0405|1007", destination)]
+      dicom_meta += [("0405|0010", "DCM-PROCESSOR"), ("0405|1001", "store-data"), ("0405|1003", filefmt), ("0405|1005", "dcm-processor"), ("0405|1007", destination), ("0405|1009", seriesId)]
 
       #Set Series Description
       dicom_meta.append(("0008|103e", "Processed Information"))
@@ -113,7 +114,7 @@ def post_nifti_to_orthanc(path, filefmt, destination, added_tags, seriesId, base
       series_id = import_dicom_to_orthanc(outpath, url, ORTHANC_REST_USERNAME, ORTHANC_REST_PASSWORD)
       if (not series_id is None) and (not destination is None):
         time.sleep(2)
-        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": "store-data", "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination})
+        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": "store-data", "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId})
         
   os.system(f"rm -rf {outpath}")
 
@@ -148,7 +149,7 @@ def post_dicom_to_orthanc(path, filefmt, destination ,added_tags, seriesId, base
           dicom_meta[h_codes[k]] = added_tags[k]
 
 
-      dicom_meta.update({"0405-0010": "DCM-PROCESSOR", "0405-1001": "store-data", "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination})
+      dicom_meta.update({"0405-0010": "DCM-PROCESSOR", "0405-1001": "store-data", "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId})
 
       output = os.path.join(base_folder, seriesId)
       os.system(f"mkdir -p {output}")
@@ -160,7 +161,7 @@ def post_dicom_to_orthanc(path, filefmt, destination ,added_tags, seriesId, base
 
       if (not series_id is None) and (not destination is None):
         time.sleep(2)
-        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": "store-data", "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination})
+        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": "store-data", "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId})
 
 
 def patch_series_private_meta(seriesId, tags):

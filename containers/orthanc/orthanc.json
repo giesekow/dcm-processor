@@ -461,7 +461,8 @@
     "0405,1001": ["ST", "Action", 1, 1, "DCM-PROCESSOR"],
     "0405,1003": ["ST", "ActionType", 1, 1, "DCM-PROCESSOR"],
     "0405,1005": ["ST", "ActionSource", 1, 1, "DCM-PROCESSOR"],
-    "0405,1007": ["ST", "ActionDestination", 1, 1, "DCM-PROCESSOR"]
+    "0405,1007": ["ST", "ActionDestination", 1, 1, "DCM-PROCESSOR"],
+    "0405,1009": ["ST", "ReferenceSeries", 1, 1, "DCM-PROCESSOR"]
   },
 
   // Whether to run DICOM C-Move operations synchronously. If set to
