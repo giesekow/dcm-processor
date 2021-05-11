@@ -1,8 +1,6 @@
 #!/bin/bash
 
-docker-compose stop $1
-docker-compose rm $1
-
+docker-compose down
 
 SCRIPT=$(readlink -f "$0")
 BASEDIR=$(dirname "$SCRIPT")
@@ -13,8 +11,8 @@ do
   BASE="${strarr[n]}"
 done
 
-docker rmi "${BASE}_$1"
+docker rmi "${BASE}_dashboard"
+docker rmi "${BASE}_scheduler"
+docker rmi "${BASE}_worker"
 
-docker-compose build $1
-
-docker-compose up -d $1
+docker volume rm "${BASE}_redis-data"

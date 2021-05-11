@@ -79,8 +79,8 @@ services:
       - "4242"
       - "8042"
     ports:
-      - 4242:4242
-      - 8042:8042
+      - ${ORTHANC_DICOM_PORT}:4242
+      - ${ORTHANC_BROWSER_PORT}:8042
     volumes:
       - ${BASEDIR}/orthanc/db:/var/lib/orthanc/db:rw                # Persitent Orthanc DB
       - ${BASEDIR}/orthanc/dblight:/var/lib/orthanc/dblight:rw      # Persitent Orthanc DB
