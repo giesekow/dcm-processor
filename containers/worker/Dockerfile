@@ -20,8 +20,8 @@ RUN apt-get update && \
     apt-get update -y && \
     apt-get install -y python3.7 python3-pip python3.7-distutils && \
     ln -s /usr/bin/python3.7 /usr/bin/python && \
-    python -m pip install rq watchdog argh pyyaml && \
-    python -m pip install -r requirements.txt
+    python -m pip install rq watchdog argh pyyaml --trusted-host=pypi.org --trusted-host=files.pythonhosted.org --default-timeout=100 && \
+    python -m pip install -r requirements.txt  --trusted-host=pypi.org --trusted-host=files.pythonhosted.org --default-timeout=100
 
 RUN apt-get install -y openjdk-8-jdk default-jre
 

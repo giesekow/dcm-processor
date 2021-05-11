@@ -20,7 +20,7 @@ done
 
 for REQUIREMENT in $(ls $REQUIREMENTS)
 do
-  python -m pip install -r "$REQUIREMENT"
+  python -m pip install -r "$REQUIREMENT" --trusted-host=pypi.org --trusted-host=files.pythonhosted.org --default-timeout=100
 done
 
 watchmedo shell-command -w -p="$REQUIREMENTS" -R -D -c ' requirements.sh "${watch_event_type} ${watch_src_path}" >> $PLOGS ' &
