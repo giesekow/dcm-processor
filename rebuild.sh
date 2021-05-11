@@ -7,10 +7,9 @@ docker-compose rm $1
 SCRIPT=$(readlink -f "$0")
 BASEDIR=$(dirname "$SCRIPT")
 
-readarray -d / -t strarr <<< "$BASEDIR"
-for (( n=0; n < ${#strarr[*]}; n++))
+for i in $(echo $BASEDIR | tr "/" "\n")
 do
-  BASE="${strarr[n]}"
+  BASE="${i}"  
 done
 
 docker rmi "${BASE}_$1"

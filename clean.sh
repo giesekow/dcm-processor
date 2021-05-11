@@ -5,10 +5,9 @@ docker-compose down
 SCRIPT=$(readlink -f "$0")
 BASEDIR=$(dirname "$SCRIPT")
 
-readarray -d / -t strarr <<< "$BASEDIR"
-for (( n=0; n < ${#strarr[*]}; n++))
+for i in $(echo $BASEDIR | tr "/" "\n")
 do
-  BASE="${strarr[n]}"
+  BASE="${i}"  
 done
 
 docker rmi "${BASE}_dashboard"
