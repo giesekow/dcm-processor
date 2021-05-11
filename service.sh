@@ -115,9 +115,9 @@ then
 
   mkdir -p "$BACKUPPATH/$SERVICENAME"
   echo "Copying registry entry"
-  cp -r "$BASEDIR/$REGISTRY/$SERVICENAME" "$BACKUPPATH/$SERVICENAME/registry"
+  cp -r "${BASEDIR}${REGISTRY}/$SERVICENAME" "$BACKUPPATH/$SERVICENAME/registry"
   echo "Copying modules entry"
-  cp -r "$BASEDIR/$MODULES/$SERVICENAME" "$BACKUPPATH/$SERVICENAME/module"
+  cp -r "${BASEDIR}${MODULES}/$SERVICENAME" "$BACKUPPATH/$SERVICENAME/module"
 fi
 
 
