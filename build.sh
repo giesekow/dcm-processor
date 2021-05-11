@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker-compose build
+docker-compose build --force-rm
 docker-compose pull
