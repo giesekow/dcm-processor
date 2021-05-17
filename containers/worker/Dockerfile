@@ -16,7 +16,6 @@ COPY script.sh ./
 
 RUN apt-get update && \
     apt-get install -y software-properties-common tzdata && \
-    #add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update -y && \
     apt-get install -y python3.7 python3-pip python3.7-distutils && \
     ln -s /usr/bin/python3.7 /usr/bin/python && \

@@ -74,7 +74,7 @@ then
   fi
 
   echo "stopping containers..."
-  $compose stop worker scheduler
+  bash stop.sh
   if [ -d "$BASEDIR/$MODULES/$SERVICENAME" ]
   then
     echo "removing existing service module entry..."
@@ -92,7 +92,7 @@ then
   echo "copying registry folder..."
   cp -r "$SERVICEPATH/registry" "$BASEDIR/$REGISTRY/$SERVICENAME"
   echo "starting workers..."
-  $compose up -d worker scheduler
+  bash run.sh
 fi
 
 
