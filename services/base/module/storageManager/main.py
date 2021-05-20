@@ -212,6 +212,8 @@ def process_storage(storages, headers, params, added_params, **kwargs):
           tags = t
 
       if f_type in FORMATS:
+        if not os.path.isfile(fullpath):
+            continue
         try:
           fileobject = open(fullpath, "rb")
           filedata = str(base64.b64encode(fileobject.read()), 'utf-8')
@@ -220,9 +222,13 @@ def process_storage(storages, headers, params, added_params, **kwargs):
           print(f"Error: {err}")
 
       elif f_type == "nifti":
+        if not os.path.isfile(fullpath):
+            continue
         post_nifti_to_orthanc(fullpath, f_type, destination, tags, headers.get("seriesId"), base_folder)
 
       elif f_type == "dicom":
+        if not os.path.isdir(fullpath):
+            continue
         post_dicom_to_orthanc(fullpath, f_type, destination, tags, headers.get("seriesId"), base_folder)
   
   os.system(f"rm -rf {base_folder}")
