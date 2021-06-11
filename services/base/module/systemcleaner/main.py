@@ -29,6 +29,7 @@ def worker(jobName, headers, params, added_params, **kwargs):
     pass
   
   if int(CLEAN_ORTHANC) != 0:
+    print("Cleaning Orthanc", flush=True)
     clean_orthanc(jobName, headers, params, added_params, **kwargs)
 
 def clean_orthanc(jobName, headers, params, added_params, **kwargs):

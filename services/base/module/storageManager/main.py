@@ -1,6 +1,7 @@
 import os, shutil, requests, base64, json, time
 from .lib import nifti_to_dicom, import_dicom_to_orthanc, load_and_update_meta
 import SimpleITK as sitk
+from datetime import datetime
 
 DATA = os.getenv('DATA', '/data')
 ORTHANC_REST_USERNAME = os.getenv('ORTHANC_REST_USERNAME', "anduin")
@@ -190,8 +191,9 @@ def patch_series_private_meta(seriesId, tags):
 
 
 def process_storage(storages, headers, params, added_params, **kwargs):
-
-  base_folder = os.path.join(DATA, "storage_tmp")
+  now = datetime.now()
+  current_time = now.strftime("%Y_%m_%d_%H_%M_%S")
+  base_folder = os.path.join(DATA, f"storage_tmp_{current_time}")
   os.system(f"mkdir -p {base_folder}")
 
   for store in storages:

@@ -73,7 +73,7 @@ services:
       - ./containers/dashboard:/app
 
   orthanc:
-    image: jodogne/orthanc-plugins:1.6.1
+    build: ./containers/orthanc
     command: /run/secrets/  # Path to the configuration files (stored as secrets)
     expose:
       - "4242"
@@ -84,22 +84,15 @@ services:
     volumes:
       - ${BASEDIR}/orthanc/db:/var/lib/orthanc/db:rw                # Persitent Orthanc DB
       - ${BASEDIR}/orthanc/dblight:/var/lib/orthanc/dblight:rw      # Persitent Orthanc DB
-      - ${BASEDIR}${DATA}:/tmp/nifti:rw                                         # Temp folder
+      - ${BASEDIR}${DATA}:/tmp/nifti:rw                             # Temp folder
+      - ./containers/orthanc/scripts:/scripts:ro
     secrets:
       - orthanc.json
-      - Dcm2NiftiLua.lua
-      - DcmFilterLua.lua
-      - Orthanc2PacsLua.lua
     environment:
       SCHEDULER_HOST: ${SCHEDULER_HOST}
       SCHEDULER_PORT: ${SCHEDULER_PORT}
+      SUPPORTED_MODALITY: ${SUPPORTED_MODALITY}
 
 secrets:
   orthanc.json:
     file: ./containers/orthanc/orthanc.json
-  Dcm2NiftiLua.lua:
-    file: ./containers/orthanc/Dcm2NiftiLua.lua
-  Orthanc2PacsLua.lua:
-    file: ./containers/orthanc/Orthanc2PacsLua.lua
-  DcmFilterLua.lua:
-    file: ./containers/orthanc/DcmFilterLua.lua
