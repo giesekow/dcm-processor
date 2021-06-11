@@ -61,7 +61,6 @@ def stableSeries(seriesId):
   else:
     print('EXIT: No valied DICOM Series for NIFTI Conversion!')
 
-
 def remove_series(seriesId):
   study = json.loads(orthanc.RestApiGet(f"/series/{seriesId}/study"))
   series = study.get("Series", [])
@@ -85,4 +84,22 @@ def remove_series(seriesId):
   else:
     orthanc.RestApiDelete(f"/series/{seriesId}")
 
+def OnStoredInstance(dicom, instanceId):
+  tags = json.loads(dicom.GetInstanceSimplifiedJson())
+
+  ActionSource = tags.get('ActionSource')
+  Action = tags.get('Action')
+  ActionDestination = tags.get('ActionDestination')
+
+  if ActionSource == "dcm-processor":
+    if Action == 'store-data':
+      try:
+        print(f"Storing Data From {ActionSource} To {ActionDestination}")
+        orthanc.RestApiPost(f"/modalities/{ActionDestination}/store", instanceId)
+      except ValueError as e:
+        print(f"Value Error: {e}")
+      except:
+        print("Error posting to modality")
+
+orthanc.RegisterOnStoredInstanceCallback(OnStoredInstance)
 orthanc.RegisterOnChangeCallback(OnChange)
