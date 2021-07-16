@@ -219,19 +219,42 @@ def process_storage(storages, headers, params, added_params, **kwargs):
         try:
           fileobject = open(fullpath, "rb")
           filedata = str(base64.b64encode(fileobject.read()), 'utf-8')
-          post_file_to_orthanc(filedata, f_type, destination, tags, headers.get("seriesId"))
+          ref_series_id = store.get("seriesId")
+          if ref_series_id is None:
+            sids = headers.get("seriesIds", [])
+            if len(sids) > 0:
+              ref_series_id = sids[0]
+
+          if not ref_series_id is None:
+            post_file_to_orthanc(filedata, f_type, destination, tags, ref_series_id)
         except Exception as err:
           print(f"Error: {err}")
 
       elif f_type == "nifti":
         if not os.path.isfile(fullpath):
             continue
-        post_nifti_to_orthanc(fullpath, f_type, destination, tags, headers.get("seriesId"), base_folder)
+
+        ref_series_id = store.get("seriesId")
+        if ref_series_id is None:
+          sids = headers.get("seriesIds", [])
+          if len(sids) > 0:
+            ref_series_id = sids[0]
+        
+        if not ref_series_id is None:
+          post_nifti_to_orthanc(fullpath, f_type, destination, tags, ref_series_id, base_folder)
 
       elif f_type == "dicom":
         if not os.path.isdir(fullpath):
             continue
-        post_dicom_to_orthanc(fullpath, f_type, destination, tags, headers.get("seriesId"), base_folder)
+
+        ref_series_id = store.get("seriesId")
+        if ref_series_id is None:
+          sids = headers.get("seriesIds", [])
+          if len(sids) > 0:
+            ref_series_id = sids[0]
+        
+        if not ref_series_id is None:
+          post_dicom_to_orthanc(fullpath, f_type, destination, tags, ref_series_id, base_folder)
   
   os.system(f"rm -rf {base_folder}")
 

@@ -6,27 +6,69 @@ import threading
 SUPPORTED_MODALITY = os.getenv("SUPPORTED_MODALITY", "CT,MR")
 
 def OnChange(changeType, level, resource):
-  if changeType == orthanc.ChangeType.STABLE_SERIES:
-    t = threading.Thread(target=stableSeries, args=(resource,))
+  if changeType == orthanc.ChangeType.STABLE_PATIENT:
+    t = threading.Thread(target=stablePatient, args=(resource,))
     t.start()
 
-def stableSeries(seriesId):
+def stablePatient(patientId):
+  patient = json.loads(orthanc.RestApiGet(f"/patients/{patientId}"))
+  studies = patient.get("Studies", [])
+  savedStudies = []
+  patientSeries = []
+  patientStudies = []
+  baseDir = os.path.join("dicom", patientId)
+  for studyId in studies:
+    study = json.loads(orthanc.RestApiGet(f"/studies/{studyId}"))
+    series = study.get("Series", [])
+    savedSeries = []
+    for seriesId in series:
+      can_process, tags = process_series(seriesId, baseDir)
+      if can_process:
+        savedSeries.append({"id": seriesId, "tags": tags})
+        patientSeries.append(seriesId)
+    
+    if len(savedSeries) > 0:
+      patientStudies.append(studyId)
+      savedStudies.append({
+        "id": studyId,
+        "series": savedSeries,
+        "tags": study.get("MainDicomTags", {})
+      })
+
+  if len(savedStudies) > 0:
+    print(f"Stable patient sending it to job scheduler: {patientId}", flush=True)
+    data = {
+      "id": patientId,
+      "tags": patient.get("MainDicomTags", {}),
+      "studies": savedStudies,
+      "studyIds": patientStudies,
+      "seriesIds": patientSeries
+    }
+
+    urlAddress = f"{os.getenv('SCHEDULER_HOST')}:{os.getenv('SCHEDULER_PORT')}/stable-patient"
+    data["dcmpath"] = baseDir
+
+    headers = {}
+    headers["Content-Type"] = "application/json"
+    response = requests.post(urlAddress, json=data, headers=headers)
+    if response.status_code != 200:
+      print(response.reason, flush=True)
+
+def process_series(seriesId, baseDir):
   TARGET = '/tmp/nifti'
   series = json.loads(orthanc.RestApiGet(f"/series/{seriesId}"))
   instances = series['Instances']
   
   if len(instances) > 3:
-    patientId = json.loads(orthanc.RestApiGet(f"/series/{seriesId}/patient")) ['ID']
-    studyId = json.loads(orthanc.RestApiGet(f"/series/{seriesId}/study")) ['ID']
     data = json.loads(orthanc.RestApiGet(f"/instances/{instances[0]}/simplified-tags"))
     ActionSource = data.get("ActionSource")
 
     if not ActionSource is None:
-      return
+      return False, data
 
     modality = data.get("Modality")
     if modality is None:
-      return
+      return False, data
 
     mods = SUPPORTED_MODALITY.split(",")
     mods = [str(s).lower() for s in mods]
@@ -36,30 +78,20 @@ def stableSeries(seriesId):
       remove_series(seriesId)
       return
 
-    print("Stable Series Received, Storing series on disk :" + seriesId)
+    print("Stable Series Received, Storing series on disk: " + seriesId, flush=True)
 
-    dcmpath = os.path.join(TARGET, 'dicom', seriesId)
+    dcmpath = os.path.join(TARGET, baseDir , seriesId)
     os.system(f"mkdir -p {dcmpath}")
 
     for i, instance in enumerate(instances):
       dicom = orthanc.RestApiGet(f"/instances/{instance}/file")
       with open(os.path.join(dcmpath, f"{instance}.dcm"), "wb") as file:
         file.write(dicom)
-      
-    urlAddress = f"{os.getenv('SCHEDULER_HOST')}:{os.getenv('SCHEDULER_PORT')}/stable-series"
 
-    data["patientId"] = patientId
-    data["studyId"] = studyId
-    data["seriesId"] = seriesId
-    data["dcmpath"] = f"dicom/{seriesId}"
-
-    headers = {}
-    headers["Content-Type"] = "application/json"
-    response = requests.post(urlAddress, json=data, headers=headers)
-    if response.status_code != 200:
-      print(response.reason, flush=True)
+    return True, data
   else:
     print('EXIT: No valied DICOM Series for NIFTI Conversion!')
+    return False, {}
 
 def remove_series(seriesId):
   study = json.loads(orthanc.RestApiGet(f"/series/{seriesId}/study"))

@@ -208,14 +208,34 @@ def check_callbacks(jobs, headers, params = {}):
             logger.error(f"Error in configuration: {json.dumps(config)}")
     return passed, params
 
-def process_task(data):
-    settings = load_system_config()
+def modify_tags(data, keys):
 
-    headers = {}
-    if "headerFields" in settings:
-        for k in settings["headerFields"]:
-            if k in data:
-                headers[k] = data[k]
+    def mod(tags):
+        new_tags = {}
+        for k in keys:
+            if k in tags:
+                new_tags[k] = tags[k]
+
+        return new_tags
+    
+    if "tags" in data:
+        data["tags"] = mod(data["tags"])
+    
+    if "studies" in data:
+        for i in range(len(data["studies"])):
+            if "tags" in data["studies"][i]:
+                data["studies"][i]["tags"] = mod(data["studies"][i]["tags"])
+            
+            if "series" in data["studies"][i]:
+                for j in range(len(data["studies"][i]["series"])):
+                    if "tags" in data["studies"][i]["series"][j]:
+                        data["studies"][i]["series"][j]["tags"] = mod(data["studies"][i]["series"][j]["tags"])
+
+    return data
+
+def process_main(data):
+    settings = load_system_config()
+    headers = modify_tags(data, settings.get("headerFields", []))
 
     preJobs, preJobNames = [[], []]
     postJobs, postJobNames = [[], []]

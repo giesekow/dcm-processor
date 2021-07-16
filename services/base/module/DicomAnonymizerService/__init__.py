@@ -6,8 +6,9 @@ MODULES = os.getenv('MODULES', '/modules')
 
 
 def worker(jobName, headers, params, added_params, **kwargs):
-  if "seriesId" in headers:
-    seriesId = str(headers.get("seriesId"))
-    dcmpath = os.path.join(DATA, headers.get("dcmpath", seriesId))
-    anonymize(dcmpath)
+  if "seriesIds" in headers:
+    seriesIds = headers.get("seriesIds")
+    for seriesId in seriesIds:
+      dcmpath = os.path.join(DATA, headers.get("dcmpath"), seriesId)
+      anonymize(dcmpath)
     

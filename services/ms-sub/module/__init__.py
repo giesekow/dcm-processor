@@ -1,30 +1,48 @@
 import os
-from .sub import subtract
+from .sub import get_dicoms, process
 import pydicom
 DATA = os.getenv("DATA")
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def worker(jobName, headers, params, added_params, **kwargs):
-
   
   if (not DATA is None):
     dcmpath = os.path.join(DATA,headers.get("dcmpath"))
-    print(dcmpath)
-    files = []
-    for r,d,f in os.walk(dcmpath):
-        for fi in f:
-          files.append(os.path.join(r,fi))
-    ds = pydicom.dcmread(files[0])
-    pps = ds.PerformedProcedureStepDescription
+    print(dcmpath, headers.get("seriesIds"), flush=True)
+    series = headers.get("seriesIds", [])
 
-    if pps == 'mssub':
+    sel_series = []
+    for s in series:
+      pth = os.path.join(dcmpath, s)
+      files = get_dicoms(pth)
+      if len(files) > 0:
+        ds = pydicom.dcmread(files[0])
+        studydate = ds.StudyDate
+        print("study date", studydate, flush=True)
+        pps = ds.PerformedProcedureStepDescription
+        if str(pps).lower().find("mssub") >= 0:
+          sel_series.append({"seriesId": s, "studyDate": int(studydate)})
 
-      niftipath = added_params.get("dcm2nii").get("output")
-      niftipath = os.path.join(DATA,niftipath)
+    sel_series = sorted(sel_series, lambda x: x.get("studyDate"))
+
+    if len(sel_series) >= 2:
+      pre_series = sel_series[0].get("seriesId")
+      post_series = sel_series[1].get("seriesId")
+      conversions = added_params.get("dcm2nii", {}).get("conversions", {})
+      pre_path = None
+      post_path = None
+
+      if str(pre_series) in conversions:
+        pre_path = os.path.join(DATA, conversions[str(pre_series)].get("output"))
+
+      if str(post_series) in conversions:
+        post_path = os.path.join(DATA, conversions[str(post_series)].get("output"))
       
-      subtract(dcmpath, niftipath)
-    
-    else:
-      print('mssub tag not found', flush=True)
-      print(pps, flush=True)
+      if (not pre_path is None) and (not post_path is None):
+        patient_folder = os.path.join(DATA, 'ms-sub', headers.get("id"))
+        
+        if not os.path.isdir(patient_folder):
+          os.makedirs(patient_folder)
+
+        process(pre_path, post_path, patient_folder)
    

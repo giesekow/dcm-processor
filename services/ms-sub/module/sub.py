@@ -68,7 +68,6 @@ def subtract(dcmpath, niftipath):
                 shutil.rmtree(os.path.dirname(pre))
                 shutil.rmtree(os.path.dirname(post))
                 
-
 def process(pre_path, post_path, patient_folder):
 
     
@@ -94,5 +93,3 @@ def process(pre_path, post_path, patient_folder):
     nib.save(nib.Nifti1Image(sub,pre_nib.affine,pre_nib.header),sub_file)
 
     shutil.copyfile(post_path, post_new)
-
-

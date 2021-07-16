@@ -8,24 +8,28 @@ def worker(jobName, headers, params, added_params, **kwargs):
   a_params = added_params.get(jobName)
   
   if (not DATA is None) and (not a_params is None):
-    base = a_params.get("base")
-    filename = a_params.get("filename")
-    ext = a_params.get("ext", ".nii.gz")
-    dcmpath = headers.get("dcmpath")
+    if "conversions" in a_params:
+      conversions = a_params.get("conversions", {})
+      for k in conversions.keys():
+        info = conversions.get(k, {})    
+        base = info.get("base")
+        filename = info.get("filename")
+        ext = info.get("ext", ".nii.gz")
+        dcmpath = headers.get("dcmpath")
 
-    if (not base is None) and (not filename is None) and (not dcmpath is None):
-      dcm2niix = os.path.join(dir_path, "dcm2niix")
-      fullbase = os.path.join(DATA, base)
-      tmpfolder = os.path.join(fullbase, filename)
-      fulldcmpath = os.path.join(DATA, dcmpath)
-      command = f"{dcm2niix} -z y -b n -f {filename} -o {tmpfolder} {fulldcmpath}"
-      os.system(f"mkdir -p {tmpfolder}")
-      os.system(command)
-      selected_file = get_max_file(tmpfolder)
-      if not selected_file is None:
-        fullFilename = f"{filename}{ext}"
-        os.system(f"mv {selected_file} {os.path.join(fullbase, fullFilename)}")
-        os.system(f"rm -rf {tmpfolder}")
+        if (not base is None) and (not filename is None) and (not dcmpath is None):
+          dcm2niix = os.path.join(dir_path, "dcm2niix")
+          fullbase = os.path.join(DATA, base)
+          tmpfolder = os.path.join(fullbase, filename)
+          fulldcmpath = os.path.join(DATA, dcmpath, k)
+          command = f"{dcm2niix} -z y -b n -f {filename} -o {tmpfolder} {fulldcmpath}"
+          os.system(f"mkdir -p {tmpfolder}")
+          os.system(command)
+          selected_file = get_max_file(tmpfolder)
+          if not selected_file is None:
+            fullFilename = f"{filename}{ext}"
+            os.system(f"mv {selected_file} {os.path.join(fullbase, fullFilename)}")
+            os.system(f"rm -rf {tmpfolder}")
 
 def get_max_file(searchpath):
   searchText = os.path.join(searchpath, "*.nii.gz")
