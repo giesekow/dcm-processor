@@ -1,9 +1,12 @@
+import os
+from posixpath import join
+
 def dicomAnonymizer(jobName, headers, params, added_params, **kwargs):
   injected_params = {}
 
-  if "seriesId" in headers:
-    seriesId = headers.get("seriesId")
-    injected_params["deleted"] = [f"dicom/{seriesId}"]
+  if "id" in headers:
+    patientId = headers.get("id")
+    injected_params["deleted"] = [os.path.join("dicom", patientId)]
   
   return True, injected_params
   

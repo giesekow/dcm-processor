@@ -68,7 +68,6 @@ def clean_orthanc(jobName, headers, params, added_params, **kwargs):
                   if resp.status_code == 200:
                     inst = resp.json()
                     ref = inst.get("ReferenceSeries")
-                    print("series_ref", ref, seriesId)
                     if (not ref is None) and str(ref) == str(seriesId):
                       try:
                         requests.delete(f"{url}/series/{sId}", auth=authOrthanc, headers=header)
@@ -80,7 +79,6 @@ def clean_orthanc(jobName, headers, params, added_params, **kwargs):
           if resp.status_code == 200:
             study = resp.json()
             series = study.get("Series")
-            print("series", series, flush=True)
             if len(series) == 0:
               try:
                 requests.delete(f"{url}/studies/{study.get('ID')}", auth=authOrthanc, headers=header)
