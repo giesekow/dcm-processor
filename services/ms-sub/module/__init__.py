@@ -23,7 +23,7 @@ def worker(jobName, headers, params, added_params, **kwargs):
         if str(pps).lower().find("mssub") >= 0:
           sel_series.append({"seriesId": s, "studyDate": int(studydate)})
 
-    sel_series = sorted(sel_series, lambda x: x.get("studyDate"))
+    sel_series = sorted(sel_series, key=lambda x: x.get("studyDate"))
 
     if len(sel_series) >= 2:
       pre_series = sel_series[0].get("seriesId")
