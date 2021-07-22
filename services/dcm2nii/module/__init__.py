@@ -1,5 +1,6 @@
-import os
+import os, json
 import glob
+import pydicom
 
 DATA = os.getenv("DATA")
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -30,6 +31,55 @@ def worker(jobName, headers, params, added_params, **kwargs):
             fullFilename = f"{filename}{ext}"
             os.system(f"mv {selected_file} {os.path.join(fullbase, fullFilename)}")
             os.system(f"rm -rf {tmpfolder}")
+          
+          searchText = os.path.join(fulldcmpath, "*.dcm")
+          filenames = glob.glob(searchText)
+
+          if len(filenames) > 0:
+            dcmElem = pydicom.dcmread(filenames[0])
+            json_dict = get_dicom_tags(dcmElem)
+            json_object = json.dumps(json_dict, indent=4, sort_keys=True)
+            with open(os.path.join(fullbase, f"{filename}.json"), "w") as outfile:
+              outfile.write(json_object)
+
+def get_dicom_tags(dcmElem: pydicom.Dataset, excTags=None):
+  baseTypes = [bytes, float, int, list, str]
+  convertTypes = {
+    pydicom.uid.UID: str,
+    pydicom.valuerep.DSfloat: float,
+    pydicom.valuerep.IS: int,
+    pydicom.valuerep.PersonName: str,
+    pydicom.multival.MultiValue : list,
+    pydicom.sequence.Sequence: list
+  }
+
+  data = {}
+  exc = [] if excTags is None else excTags
+  for elem in dcmElem:
+    name = "".join(str(elem.name).split(" "))
+    if (elem.name in exc) or (name in exc):
+      continue
+
+    if elem.VR == 'OW':
+      data[name] = None
+      continue
+
+    if elem.VR == 'SQ':
+      items = []
+      for el in elem.value:
+        value = get_dicom_tags(el, excTags)
+        items.append(value)
+      data[name] = items
+    else:
+      elemType = type(elem.value)
+      if elemType in baseTypes:
+        data[name] = elem.value
+      elif elemType in convertTypes:
+        data[name] = convertTypes[elemType](elem.value)
+      else:
+        data[name] = str(elem.value)
+
+  return data
 
 def get_max_file(searchpath):
   searchText = os.path.join(searchpath, "*.nii.gz")
