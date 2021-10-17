@@ -15,7 +15,7 @@ COPY ./containers/worker/envs.py ./
 RUN mkdir -p /settings
 RUN mkdir -p /environments
 
-COPY ./containers/worker-base/settings/. /settings/.
+COPY ./containers/worker/settings/. /settings/.
 
 # Install all required dependencies
 
