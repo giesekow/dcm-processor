@@ -1,16 +1,16 @@
 import logging
 import os, json
-from rq import Queue, Connection
-from redis import Redis
 from glob import glob
 import importlib
 from operator import itemgetter
+from mqas import Queue
+from pymongo import MongoClient
 
 
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = os.getenv('REDIS_PORT', 6379)
-REDIS_PSWD = os.getenv('REDIS_PSWD')
-DEFUALT_PRIORITY=os.getenv('DEFUALT_PRIORITY', 'default')
+JOBS_CONNECTION = os.getenv('JOBS_CONNECTION', 'mongodb://localhost:27017')
+JOBS_DBNAME = os.getenv('JOBS_DBNAME', 'jobs')
+JOBS_COLNAME = os.getenv('JOBS_COLNAME', 'jobs')
+DEFUALT_CHANNEL=os.getenv('DEFUALT_CHANNEL', 'default')
 REGISTRY = os.getenv('REGISTRY', './registry')
 SETTINGS = os.getenv('SETTINGS', os.path.join(os.getcwd(), "settings.json"))
 
@@ -71,20 +71,23 @@ def load_system_config():
 
     return data
 
-def start_job(jobname, worker, kwargs, timeout='1h', priority=None, depends_on=None):
+def start_job(jobname, worker, kwargs, timeout='1h', channel=None, depends_on=None, client=None):
     kwargs["jobName"] = jobname
-    if priority is None:
-        priority = DEFUALT_PRIORITY
+
+    if channel is None:
+        channel = DEFUALT_CHANNEL
 
     try:
-        with Connection(Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PSWD)):
-            q = Queue(priority)
-            if depends_on is None:
-                job = q.enqueue(worker, kwargs=kwargs, job_timeout=timeout, description=jobname)
-                return job
-            else:
-                job = q.enqueue(worker, kwargs=kwargs, job_timeout=timeout, depends_on=depends_on, description=jobname)
-                return job
+        if client is None:
+            client = MongoClient(JOBS_CONNECTION)
+
+        q = Queue(client, channel=channel, db_name=JOBS_DBNAME, col_name=JOBS_COLNAME)
+        if depends_on is None:
+            job = q.enqueue(worker, kwargs=kwargs, job_timeout=timeout)
+            return job
+        else:
+            job = q.enqueue(worker, kwargs=kwargs, job_timeout=timeout, depends_on=depends_on)
+            return job
 
     except Exception as ex:
         logger.error(f"Exception: {ex}")
@@ -126,7 +129,10 @@ def restructure_jobs(jobs):
 
     return passed_jobs
 
-def process_final_jobs(jobs, headers, added_params, jobIds={}, dependsOn=[]):
+def process_final_jobs(jobs, headers, added_params, jobIds={}, dependsOn=[], client=None):
+    if client is None:
+        client = MongoClient(JOBS_CONNECTION)
+
     for job in jobs:
         depends_on = None
         kwargs = {"headers": headers, "added_params": added_params, "params": job.get("params")}
@@ -147,7 +153,7 @@ def process_final_jobs(jobs, headers, added_params, jobIds={}, dependsOn=[]):
                     depends_on.append(jobIds[dp])
 
         try:
-            j = start_job(jobname=job["jobName"], worker=job["worker"], kwargs=kwargs, timeout=job.get("timeout", "1h"), priority=job.get("priority"), depends_on=depends_on)
+            j = start_job(jobname=job["jobName"], worker=job["worker"], kwargs=kwargs, timeout=job.get("timeout", "1h"), channel=job.get("channel"), depends_on=depends_on, client=client)
             jobIds[job["jobName"]] = j
 
         except Exception as ex:
@@ -202,7 +208,7 @@ def check_callbacks(jobs, headers, params = {}):
                     passed.append(config)
 
             except Exception as ex:
-                logger.error(f"Exception: {ex}")
+                logger.error(f"Exception: {config.get('jobName', '')}: {ex}")
 
         else:
             logger.error(f"Error in configuration: {json.dumps(config)}")
@@ -260,7 +266,9 @@ def process_main(data):
     jobs = restructure_jobs(configs)
     postJobs = restructure_jobs(postJobs)
 
-    preJobIds = process_final_jobs(preJobs, headers, added_params)
+    client = MongoClient(JOBS_CONNECTION)
+
+    preJobIds = process_final_jobs(preJobs, headers, added_params, client=client)
 
 
     preJobNames = []
@@ -270,7 +278,7 @@ def process_main(data):
         if (not jobName is None) and (jobName in preJobIds):
             preJobNames.append(jobName)
 
-    jobIds = process_final_jobs(jobs, headers, added_params, preJobIds, preJobNames)
+    jobIds = process_final_jobs(jobs, headers, added_params, preJobIds, preJobNames, client=client)
     preJobIds.update(jobIds)
     
     for i in range(len(jobs)):
@@ -278,4 +286,4 @@ def process_main(data):
         if (not jobName is None) and (jobName in jobIds):
             preJobNames.append(jobName)
 
-    process_final_jobs(postJobs, headers, added_params, preJobIds, preJobNames)
+    process_final_jobs(postJobs, headers, added_params, preJobIds, preJobNames, client=client)

@@ -1,4 +1,4 @@
-FROM ${BASE_IMAGE}
+FROM ubuntu:18.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
@@ -7,15 +7,15 @@ WORKDIR /app
 
 
 # Copy script files
-COPY entrypoint.sh ./
-COPY install.py ./
-COPY start.py ./
-COPY envs.py ./
+COPY ./containers/worker-base/entrypoint.sh ./
+COPY ./containers/worker-base/install.py ./
+COPY ./containers/worker-base/start.py ./
+COPY ./containers/worker-base/envs.py ./
 
 RUN mkdir -p /settings
 RUN mkdir -p /environments
 
-COPY ./settings/. /settings/.
+COPY ./containers/worker-base/settings/. /settings/.
 
 # Install all required dependencies
 

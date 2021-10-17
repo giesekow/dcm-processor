@@ -4,13 +4,16 @@ import json, os, requests
 import threading
 
 SUPPORTED_MODALITY = os.getenv("SUPPORTED_MODALITY", "CT,MR")
+PENDING_INSTANCES = []
 
 def OnChange(changeType, level, resource):
+  global PENDING_INSTANCES
   if changeType == orthanc.ChangeType.STABLE_PATIENT:
-    t = threading.Thread(target=stablePatient, args=(resource,))
-    t.start()
+    if len(PENDING_INSTANCES) > 0:
+      t = threading.Thread(target=stablePatient, args=(resource, PENDING_INSTANCES))
+      t.start()
 
-def stablePatient(patientId):
+def stablePatient(patientId, pending_instances):
   patient = json.loads(orthanc.RestApiGet(f"/patients/{patientId}"))
   studies = patient.get("Studies", [])
   savedStudies = []
@@ -22,7 +25,7 @@ def stablePatient(patientId):
     series = study.get("Series", [])
     savedSeries = []
     for seriesId in series:
-      can_process, tags = process_series(seriesId, baseDir)
+      can_process, tags = process_series(seriesId, baseDir, pending_instances)
       if can_process:
         savedSeries.append({"id": seriesId, "tags": tags})
         patientSeries.append(seriesId)
@@ -54,7 +57,7 @@ def stablePatient(patientId):
     if response.status_code != 200:
       print(response.reason, flush=True)
 
-def process_series(seriesId, baseDir):
+def process_series(seriesId, baseDir, pending_instances):
   TARGET = '/tmp/nifti'
   series = json.loads(orthanc.RestApiGet(f"/series/{seriesId}"))
   instances = series['Instances']
@@ -82,13 +85,19 @@ def process_series(seriesId, baseDir):
 
     dcmpath = os.path.join(TARGET, baseDir , seriesId)
     os.system(f"mkdir -p {dcmpath}")
+    hasData = False
 
     for i, instance in enumerate(instances):
+      if not instance in pending_instances:
+        continue
+
+      pending_instances.remove(instance)
       dicom = orthanc.RestApiGet(f"/instances/{instance}/file")
       with open(os.path.join(dcmpath, f"{instance}.dcm"), "wb") as file:
         file.write(dicom)
+        hasData = True
 
-    return True, data
+    return hasData, data
   else:
     print('EXIT: No valied DICOM Series for NIFTI Conversion!')
     return False, {}
@@ -117,6 +126,8 @@ def remove_series(seriesId):
     orthanc.RestApiDelete(f"/series/{seriesId}")
 
 def OnStoredInstance(dicom, instanceId):
+  global PENDING_INSTANCES
+      
   tags = json.loads(dicom.GetInstanceSimplifiedJson())
 
   ActionSource = tags.get('ActionSource')
@@ -124,7 +135,7 @@ def OnStoredInstance(dicom, instanceId):
   ActionDestination = tags.get('ActionDestination')
 
   if ActionSource == "dcm-processor":
-    if Action == 'store-data':
+    if Action == 'store-data' and not (ActionDestination is None):
       try:
         print(f"Storing Data From {ActionSource} To {ActionDestination}")
         orthanc.RestApiPost(f"/modalities/{ActionDestination}/store", instanceId)
@@ -132,6 +143,8 @@ def OnStoredInstance(dicom, instanceId):
         print(f"Value Error: {e}")
       except:
         print("Error posting to modality")
+  elif ActionSource is None:
+    PENDING_INSTANCES.append(instanceId)
 
 orthanc.RegisterOnStoredInstanceCallback(OnStoredInstance)
 orthanc.RegisterOnChangeCallback(OnChange)

@@ -1,4 +1,4 @@
-FROM ${BASE_IMAGE}
+FROM ubuntu:18.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin

@@ -3,3 +3,4 @@ numpy
 nibabel
 pydicom
 requests
+scikit-image

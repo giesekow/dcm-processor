@@ -12,4 +12,4 @@ python start.py
 
 ENVARGS=$(python envs.py)
 
-python-mqas worker $JOBS --modules="$MODULES" --conn="$JOBS_CONNECTION" --dbname="$JOBS_DBNAME" --colname="$JOBS_COLNAME" --log-file="$WLOGS" $ENVARGS
+python-mqas worker $ENVARGS --modules="$MODULES" --conn="$JOBS_CONNECTION" --dbname="$JOBS_DBNAME" --colname="$JOBS_COLNAME" --log-file="$WLOGS"
