@@ -1,0 +1,13 @@
+[
+  {
+    "jobName": "ms-sub",
+    "worker": "ms-sub.worker",
+    "callback": "ms-sub.callback",
+    "dependsOn": "dcm2nii",
+    "channel": "default",
+    "timeout": "1h",
+    "params": {},
+    "sortPosition": 0,
+    "description": "registers and subtracts mr images"
+  }
+]

@@ -35,10 +35,12 @@ def main():
         data[c] = binary
   
   args = ""
+  cargs = ""
   for k in data:
     args = args + "-e=" + str(k) + ":" + str(data[k]) + " "
+    cargs = cargs + " " + str(k)
 
-  print(args)
+  print(cargs.strip() + " " + args.strip())
 
 
 if __name__ == "__main__":

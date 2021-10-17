@@ -7,15 +7,15 @@ WORKDIR /app
 
 
 # Copy script files
-COPY entrypoint.sh ./
-COPY install.py ./
-COPY start.py ./
-COPY envs.py ./
+COPY ./containers/worker/entrypoint.sh ./
+COPY ./containers/worker/install.py ./
+COPY ./containers/worker/start.py ./
+COPY ./containers/worker/envs.py ./
 
 RUN mkdir -p /settings
 RUN mkdir -p /environments
 
-COPY ./settings/. /settings/.
+COPY ./containers/worker-base/settings/. /settings/.
 
 # Install all required dependencies
 

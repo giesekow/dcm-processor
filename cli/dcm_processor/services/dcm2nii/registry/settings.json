@@ -1,0 +1,13 @@
+[
+  {
+    "jobName": "dcm2nii",
+    "worker": "dcm2nii.worker",
+    "callback": "dcm2nii.callback",
+    "dependsOn": null,
+    "channel": "default",
+    "timeout": "1h",
+    "params": {},
+    "sortPosition": 0,
+    "description": "Dicom to Nifti Service"
+  }
+]
