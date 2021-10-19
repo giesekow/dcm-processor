@@ -1,7 +1,7 @@
 #!/bin/bash
 
 repo=giesekow/dcm-processor
-tag=0.0.1-beta
+tag=0.0.1
 
 if [ -z $2 ]
 then

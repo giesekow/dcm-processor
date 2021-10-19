@@ -1,5 +1,5 @@
 {
-  "headerFields": ["PerformedProcedureStepDescription", "seriesId", "dcmpath"],
+  "headerFields": ["PerformedProcedureStepDescription", "seriesId", "dcmpath", "SeriesDescription", "ContrastBolusAgent", "Modality", "ImageType", "PatientID", "SeriesNumber", "StudyDate"],
   "preServices": [
     {
       "jobName": "dicomAnonymizer",

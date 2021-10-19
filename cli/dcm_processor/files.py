@@ -5,6 +5,49 @@ docker-compose build --force-rm
 docker-compose pull
 """
 
+SETTINGS = """
+{
+  "headerFields": ["PerformedProcedureStepDescription", "seriesId", "dcmpath", "SeriesDescription", "ContrastBolusAgent", "Modality", "ImageType", "PatientID", "SeriesNumber", "StudyDate"],
+  "preServices": [
+    {
+      "jobName": "dicomAnonymizer",
+      "worker": "base.DicomAnonymizerService.worker",
+      "callback": "base.dicomAnonymizer",
+      "dependsOn": null,
+      "channel": "default",
+      "timeout": "1h",
+      "params": {},
+      "sortPosition": 0,
+      "description": "Dicom Anonymizer Service"
+    }
+  ],
+  "postServices":[
+    {
+      "jobName": "storageManager",
+      "worker": "base.storageManager.worker",
+      "callback": "base.storageManager",
+      "dependsOn": null,
+      "channel": "default",
+      "timeout": "1h",
+      "params": {},
+      "sortPosition": 0,
+      "description": "Storage Service"
+    },
+    {
+      "jobName": "systemClearner",
+      "worker": "base.systemcleaner.worker",
+      "callback": "base.systemcleaner",
+      "dependsOn": "storageManager",
+      "channel": "default",
+      "timeout": "1h",
+      "params": {},
+      "sortPosition": 1,
+      "description": "System Cleaning Service"
+    }
+  ]
+}
+"""
+
 CLEAN = """
 #!/bin/bash
 
@@ -257,6 +300,7 @@ LOGS=/logs
 
 SCHEDULER_HOST=http://scheduler
 SCHEDULER_PORT=5000
+SCHEDULER_SETTINGS=/settings.json
 
 ORTHANC_REST_USERNAME=admin
 ORTHANC_REST_PASSWORD=admin
@@ -273,7 +317,7 @@ JOBS_DBNAME=jobs
 JOBS_COLNAME=jobs
 DEFUALT_CHANNEL=default
 
-IMAGE_VERSION=0.0.1-beta
+IMAGE_VERSION=0.0.1
 """
 
 DOCKER_COMPOSE = """
@@ -324,10 +368,12 @@ services:
       REGISTRY: /registry
       LOGS: /logs
       DEFUALT_CHANNEL: ${DEFUALT_CHANNEL}
+      SETTINGS: ${SCHEDULER_SETTINGS}
     volumes:
       - ${BASEDIR}${REGISTRY}:/registry:cached
       - ${BASEDIR}${DATA}:/data:rw
       - ${BASEDIR}${LOGS}:/logs:rw
+      - settings.json:/settings.json
 
   orthanc:
     image: giesekow/dcm-processor-orthanc:${IMAGE_VERSION}

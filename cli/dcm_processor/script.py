@@ -175,7 +175,8 @@ def __initialize_app(base_path):
     "rebuild.sh": FILES.REBUILD,
     "run.sh": FILES.RUN,
     "service.sh": FILES.SERVICE,
-    "stop.sh": FILES.STOP
+    "stop.sh": FILES.STOP,
+    "settings.json": FILES.SETTINGS
   }
 
   ## Write initial files.

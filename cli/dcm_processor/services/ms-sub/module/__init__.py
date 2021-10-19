@@ -32,10 +32,10 @@ def worker(jobName, headers, params, added_params, **kwargs):
       post_path = None
 
       if str(pre_series) in conversions:
-        pre_path = os.path.join(DATA, conversions[str(pre_series)].get("output"))
+        pre_path = os.path.join(DATA, conversions.get(str(pre_series), {}).get("output"))
 
       if str(post_series) in conversions:
-        post_path = os.path.join(DATA, conversions[str(post_series)].get("output"))
+        post_path = os.path.join(DATA, conversions.get(str(post_series), {}).get("output"))
       
       if (not pre_path is None) and (not post_path is None):
         patient_folder = os.path.join(DATA, 'ms-sub', headers.get("id"))
@@ -44,4 +44,3 @@ def worker(jobName, headers, params, added_params, **kwargs):
           os.makedirs(patient_folder)
 
         process(pre_path, post_path, patient_folder, sub_file)
-   

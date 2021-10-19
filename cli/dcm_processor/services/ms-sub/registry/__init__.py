@@ -23,7 +23,7 @@ def callback(jobName, headers, params, added_params, **kwargs):
       "permanent": True,
       "path": os.path.join("ms-sub", headers.get("id"), f"{headers.get('id')}_sub.nii.gz")
     },
-    "sub_file": os.path.join("ms-sub", f"{headers.get('id')}_sub.nii.gz")
+    "sub_file": os.path.join("ms-sub", headers.get("id"), f"{headers.get('id')}_sub.nii.gz")
   }
 
   return count > 0, injected_params
