@@ -3,19 +3,41 @@
 from __future__ import print_function
 import os, argparse, json, dotenv, sys
 import inquirer as inq
+import tempfile, git
 from ruamel.yaml import YAML
 from . import files as FILES
 from . import worker as WORKER
 
-GIT_CODE_URL="https://github.com/giesekow/dcm-processor.git"
+INSTALLERS = ['local', 'git']
 
+def handle_installer(inst, question, baseDir, isWorker=False):
+  questions = []
+
+  if inst == "git":
+    questions.append(inq.Text("object_path", message=question + " (git url):"))
+    if isWorker:
+      questions.append(inq.Text("sub_path", message="Repository sub-folder", default="worker"))
+  else:
+    questions.append(inq.Path("object_path", message=question, exists=True, path_type=inq.Path.DIRECTORY, normalize_to_absolute_path=True))
+
+  answers = inq.prompt(questions)
+
+  if inst == "git":
+    url = answers["object_path"]
+    repo = git.Repo.clone_from(url, baseDir)
+    repo.submodule_update()
+
+    if isWorker:
+      return os.path.join(baseDir, answers["sub_path"])
+
+    return baseDir
+
+  return answers["object_path"]
 
 def parse_args():
   parent_parser = argparse.ArgumentParser(description='A Command line tool for the dicom processor library', add_help=False)
   parent_parser.add_argument('action', metavar='action', type=str, help='action to be performed, options [create, init, install, remove, backup, build]')
   parent_parser.add_argument('object', metavar='object', type=str, help='action object, options [service, app]')
-  
-
   args = parent_parser.parse_args()
   return args
 
@@ -399,39 +421,50 @@ def install_service(args):
   questions = [
     inq.List("app_name", message="Select app to install service to", choices=list(existing_apps.keys())),
     inq.Text("service_name", message="Enter service name"),
-    inq.Path("service_path", message="Enter service folder", exists=True, path_type=inq.Path.DIRECTORY, normalize_to_absolute_path=True),
+    inq.List("inst_type", message="Select installer", choices=INSTALLERS)
   ]
 
   answers = inq.prompt(questions)
   app_name = answers['app_name']
   service_name = answers['service_name']
-  service_path = answers['service_path']
+  inst_type = answers['inst_type']
 
-  config = existing_apps.get(app_name)
+  with tempfile.TemporaryDirectory() as baseDir:
+    service_path = handle_installer(inst_type, "Enter service path", baseDir)
 
-  if config is None:
-    print("Unable to load app configuration!")
-    return
+    if service_path is None:
+      print("Unable install service!")
+      return
 
-  base_dir = config.get("base_dir")
-    
-  if base_dir is None:
-    print("Error in configuration filename")
-    return
+    config = existing_apps.get(app_name)
 
-  service_script = os.path.join(base_dir, "service.sh")
+    if config is None:
+      print("Unable to load app configuration!")
+      return
 
-  if not os.path.isfile(service_script):
-    print("Missing build script!")
-    return
+    base_dir = config.get("base_dir")
+      
+    if base_dir is None:
+      print("Error in configuration filename")
+      return
 
-  service_dir = os.path.abspath(service_path)
+    service_script = os.path.join(base_dir, "service.sh")
 
-  cwd = os.getcwd()
+    if not os.path.isfile(service_script):
+      print("Missing build script!")
+      return
 
-  os.chdir(os.path.abspath(os.path.join(base_dir)))
-  os.system(f"bash service.sh install {service_name} -p {service_dir}")
-  os.chdir(cwd)
+    service_dir = os.path.abspath(service_path)
+
+    cwd = os.getcwd()
+
+    os.chdir(os.path.abspath(os.path.join(base_dir)))
+    os.system(f"bash service.sh install {service_name} -p {service_dir}")
+
+    if inst_type != "local":
+      os.rmdir(service_dir)
+
+    os.chdir(cwd)
 
 def install_worker(args):
   existing_apps = load_config("apps")
@@ -442,7 +475,7 @@ def install_worker(args):
   questions = [
     inq.List("app_name", message="Select app to install worker to", choices=list(existing_apps.keys())),
     inq.Text("worker_name", message="Enter worker name"),
-    inq.Path("worker_path", message="Enter worker folder", exists=True, path_type=inq.Path.DIRECTORY, normalize_to_absolute_path=True),
+    inq.List("inst_type", message="Select installer", choices=INSTALLERS),
     inq.List("start_worker", message="Start worker after installation ?", choices=["Yes", "No"], default="No"),
     inq.List("config_gpu", message="Configure GPU device reservation ?", choices=["Yes", "No"], default="No"),
   ]
@@ -450,189 +483,166 @@ def install_worker(args):
   answers = inq.prompt(questions)
   app_name = answers['app_name']
   worker_name = answers['worker_name']
-  worker_path = answers['worker_path']
+  inst_type = answers['inst_type']
   config_gpu = answers['config_gpu']
   start_worker_after_install = answers['start_worker']
   device_config = {}
 
-  if config_gpu == "Yes":
-    device_answers = inq.prompt([
-      inq.Text("device_cap", message="Enter device capabilities (comman separated list)", default="gpu"),
-      inq.Text("driver", message="Enter device driver", default="nvidia"),
-      inq.List("is_deviceid_or_count", message="How would you want to configure the reservation ?", choices=["Device Count", "Device ID"], default="Device Count"),
-    ])
+  with tempfile.TemporaryDirectory() as baseDir:
+    worker_path = handle_installer(inst_type, "Enter worker path", baseDir, isWorker=True)
 
-    caps = device_answers["device_cap"]
-    driv = device_answers["driver"]
-    is_dev_or_count = device_answers['is_deviceid_or_count']
-
-    caps = str(caps).split(",")
-
-    if len(caps) > 0:
-      device_config["capabilities"] = caps
-
-    if driv != "":
-      device_config["driver"] = driv  
-
-    if is_dev_or_count == "Device Count":
-      count_answers = inq.prompt([
-        inq.Text("count", message="Enter Device Count (integer) leave empty to use all devices"),
-        inq.Text("device_options", message="Enter driver specific options (comma seperated key:value pairs)"),
+    if config_gpu == "Yes":
+      device_answers = inq.prompt([
+        inq.Text("device_cap", message="Enter device capabilities (comman separated list)", default="gpu"),
+        inq.Text("driver", message="Enter device driver", default="nvidia"),
+        inq.List("is_deviceid_or_count", message="How would you want to configure the reservation ?", choices=["Device Count", "Device ID"], default="Device Count"),
       ])
 
-      cnt = count_answers["count"]
-      opts = count_answers["device_options"]
+      caps = device_answers["device_cap"]
+      driv = device_answers["driver"]
+      is_dev_or_count = device_answers['is_deviceid_or_count']
 
-      if cnt != "":
-        device_config["count"] = int(cnt)
+      caps = str(caps).split(",")
+
+      if len(caps) > 0:
+        device_config["capabilities"] = caps
+
+      if driv != "":
+        device_config["driver"] = driv  
+
+      if is_dev_or_count == "Device Count":
+        count_answers = inq.prompt([
+          inq.Text("count", message="Enter Device Count (integer) leave empty to use all devices"),
+          inq.Text("device_options", message="Enter driver specific options (comma seperated key:value pairs)"),
+        ])
+
+        cnt = count_answers["count"]
+        opts = count_answers["device_options"]
+
+        if cnt != "":
+          device_config["count"] = int(cnt)
+        else:
+          device_config["count"] = "all"
+          
+        if opts != "":
+          opts = str(opts).split(",")         
+          for opt in opts:
+            keyval = opt.split(":")
+            if len(keyval) > 1:
+
+              if not "options" in device_config:
+                device_config["options"] = {}
+              
+              device_config[keyval[0]] = keyval[1]
+
       else:
-        device_config["count"] = "all"
-        
-      if opts != "":
-        opts = str(opts).split(",")         
-        for opt in opts:
-          keyval = opt.split(":")
-          if len(keyval) > 1:
+        deviceid_answers = inq.prompt([
+          inq.Text("deviceids", message="Enter Device IDs (comman separated list)"),
+          inq.Text("device_options", message="Enter driver specific options (comma seperated key:value pairs)"),
+        ])
 
-            if not "options" in device_config:
-              device_config["options"] = {}
-            
-            device_config[keyval[0]] = keyval[1]
+        devids = deviceid_answers["deviceids"]
+        opts = deviceid_answers["device_options"]
 
-    else:
-      deviceid_answers = inq.prompt([
-        inq.Text("deviceids", message="Enter Device IDs (comman separated list)"),
-        inq.Text("device_options", message="Enter driver specific options (comma seperated key:value pairs)"),
-      ])
+        if devids != "":
+          device_config["device_ids"] = str(devids).split(",")
+          
+        if opts != "":
+          opts = str(opts).split(",")         
+          for opt in opts:
+            keyval = opt.split(":")
+            if len(keyval) > 1:
 
-      devids = deviceid_answers["deviceids"]
-      opts = deviceid_answers["device_options"]
+              if not "options" in device_config:
+                device_config["options"] = {}
+              
+              device_config[keyval[0]] = keyval[1]
 
-      if devids != "":
-        device_config["device_ids"] = str(devids).split(",")
-        
-      if opts != "":
-        opts = str(opts).split(",")         
-        for opt in opts:
-          keyval = opt.split(":")
-          if len(keyval) > 1:
+    worker_name = str(worker_name).lower()
 
-            if not "options" in device_config:
-              device_config["options"] = {}
-            
-            device_config[keyval[0]] = keyval[1]
+    if worker_name == "worker":
+      print("Worker name cannot be 'worker'")
+      return
 
-  worker_name = str(worker_name).lower()
+    config = existing_apps.get(app_name)
 
-  if worker_name == "worker":
-    print("Worker name cannot be 'worker'")
-    return
+    if config is None:
+      print("Unable to load app configuration!")
+      return
 
-  config = existing_apps.get(app_name)
+    existing_workers = config.get("workers")
 
-  if config is None:
-    print("Unable to load app configuration!")
-    return
+    if existing_workers is None:
+      existing_workers = {}
 
-  existing_workers = config.get("workers")
+    if worker_name in existing_workers:
+      print(f"Worker with name {worker_name} already exist remove worker first!")
+      return
 
-  if existing_workers is None:
-    existing_workers = {}
+    base_dir = config.get("base_dir")
 
-  if worker_name in existing_workers:
-    print(f"Worker with name {worker_name} already exist remove worker first!")
-    return
+    workers_dir = os.path.join(base_dir, "workers")
 
-  base_dir = config.get("base_dir")
+    os.system(f"mkdir -p {workers_dir}")
 
-  workers_dir = os.path.join(base_dir, "workers")
+    # check required files
+    settingsfile = os.path.join(worker_path, "settings.json")
 
-  os.system(f"mkdir -p {workers_dir}")
+    if not os.path.isfile(settingsfile):
+      print("Worker missing settings.json!")
+      return
+    
+    worker_settings = {}
 
-  # check required files
-  settingsfile = os.path.join(worker_path, "settings.json")
+    with open(settingsfile) as jsonFile:
+      worker_settings = json.load(jsonFile)
 
-  if not os.path.isfile(settingsfile):
-    print("Worker missing settings.json!")
-    return
-  
-  worker_settings = {}
+    worker_base_dir = os.path.join(workers_dir, worker_name)
 
-  with open(settingsfile) as jsonFile:
-    worker_settings = json.load(jsonFile)
+    __initialize_worker(base_path=worker_base_dir, settings=worker_settings)
 
-  worker_base_dir = os.path.join(workers_dir, worker_name)
+    os.system(f"cp -r {os.path.join(worker_path)} {os.path.join(workers_dir, worker_name, 'settings')}")
 
-  __initialize_worker(base_path=worker_base_dir, settings=worker_settings)
-
-  os.system(f"cp -r {os.path.join(worker_path)} {os.path.join(workers_dir, worker_name, 'settings')}")
-
-  docker_compose_config = {
-    'build': f"./workers/{worker_name}",
-    'depends_on': ['mongo'],
-    'environment': {
-      'JOBS_CONNECTION': '${JOBS_CONNECTION}',
-      'JOBS_DBNAME': '${JOBS_DBNAME}',
-      'JOBS_COLNAME': '${JOBS_COLNAME}',
-      'ORTHANC_REST_USERNAME': '${ORTHANC_REST_USERNAME}',
-      'ORTHANC_REST_PASSWORD': '${ORTHANC_REST_PASSWORD}',
-      'ORTHANC_REST_URL': '${ORTHANC_REST_URL}',
-      'ORTHANC_DEFUALT_STORE': '${ORTHANC_DEFUALT_STORE}',
-      'DATA': '/data',
-      'MODULES': '/modules',
-      'LOGS': '/logs'
-    },
-    'volumes': [
-      '${BASEDIR}${MODULES}:/modules:cached',
-      '${BASEDIR}${DATA}:/data:rw',
-      '${BASEDIR}${LOGS}:/logs:rw'
-    ]
-  }
-
-  if "image" in worker_settings:
-    img = worker_settings.get("image")
-
-    if not img is None:
-      del docker_compose_config["build"]
-      docker_compose_config["image"] = img
-
-  if config_gpu == "Yes" and "capabilities" in device_config:
-    docker_compose_config["deploy"] = {
-      "resources": {
-        "reservations": {
-          "devices": [device_config]
-        }
-      }
+    docker_compose_config = {
+      'build': f"./workers/{worker_name}",
+      'depends_on': ['mongo'],
+      'environment': {
+        'JOBS_CONNECTION': '${JOBS_CONNECTION}',
+        'JOBS_DBNAME': '${JOBS_DBNAME}',
+        'JOBS_COLNAME': '${JOBS_COLNAME}',
+        'ORTHANC_REST_USERNAME': '${ORTHANC_REST_USERNAME}',
+        'ORTHANC_REST_PASSWORD': '${ORTHANC_REST_PASSWORD}',
+        'ORTHANC_REST_URL': '${ORTHANC_REST_URL}',
+        'ORTHANC_DEFUALT_STORE': '${ORTHANC_DEFUALT_STORE}',
+        'DATA': '/data',
+        'MODULES': '/modules',
+        'LOGS': '/logs'
+      },
+      'volumes': [
+        '${BASEDIR}${MODULES}:/modules:cached',
+        '${BASEDIR}${DATA}:/data:rw',
+        '${BASEDIR}${LOGS}:/logs:rw'
+      ]
     }
 
-  yaml = YAML(typ="safe", pure=True)
-  yaml.default_flow_style = False
-  data = {}
-  with open(os.path.join(base_dir, "docker-compose.yml"), 'r') as f: 
-    data = yaml.load(f)
-  
-  with open(os.path.join(base_dir, "docker-compose.yml"), 'w') as f: 
-    data["services"][str(worker_name)] = docker_compose_config
-    yaml.dump(data, f)
+    if "image" in worker_settings:
+      img = worker_settings.get("image")
 
-  existing_workers[worker_name] = {
-    "base_dir": worker_name,
-  }
+      if not img is None:
+        del docker_compose_config["build"]
+        docker_compose_config["image"] = img
 
-  config["workers"] = existing_workers
-  existing_apps[app_name] = config
-  update_config("apps", existing_apps)
-  print(f"Worker successfully install as {worker_name}")
+    if config_gpu == "Yes" and "capabilities" in device_config:
+      docker_compose_config["deploy"] = {
+        "resources": {
+          "reservations": {
+            "devices": [device_config]
+          }
+        }
+      }
 
-  cwd = os.getcwd()
-  os.chdir(os.path.join(base_dir))
-
-  if "build" in worker_settings:
-    os.system(f"docker-compose build --force-rm {worker_name}")
-
-    del docker_compose_config["build"]
-    docker_compose_config["image"] = f"{base_dir}_{worker_name}"
-
+    yaml = YAML(typ="safe", pure=True)
+    yaml.default_flow_style = False
     data = {}
     with open(os.path.join(base_dir, "docker-compose.yml"), 'r') as f: 
       data = yaml.load(f)
@@ -641,12 +651,38 @@ def install_worker(args):
       data["services"][str(worker_name)] = docker_compose_config
       yaml.dump(data, f)
 
-    os.system(f"rm -rf {os.path.join(worker_base_dir)}")
+    existing_workers[worker_name] = {
+      "base_dir": worker_name,
+    }
 
-  if start_worker_after_install == "Yes":
-    os.system(f"docker-compose up -d {worker_name}")
+    config["workers"] = existing_workers
+    existing_apps[app_name] = config
+    update_config("apps", existing_apps)
+    print(f"Worker successfully install as {worker_name}")
 
-  os.chdir(cwd)
+    cwd = os.getcwd()
+    os.chdir(os.path.join(base_dir))
+
+    if "build" in worker_settings:
+      os.system(f"docker-compose build --force-rm {worker_name}")
+
+      del docker_compose_config["build"]
+      docker_compose_config["image"] = f"{base_dir}_{worker_name}"
+
+      data = {}
+      with open(os.path.join(base_dir, "docker-compose.yml"), 'r') as f: 
+        data = yaml.load(f)
+      
+      with open(os.path.join(base_dir, "docker-compose.yml"), 'w') as f: 
+        data["services"][str(worker_name)] = docker_compose_config
+        yaml.dump(data, f)
+
+      os.system(f"rm -rf {os.path.join(worker_base_dir)}")
+
+    if start_worker_after_install == "Yes":
+      os.system(f"docker-compose up -d {worker_name}")
+
+    os.chdir(cwd)
 
 def __initialize_worker(base_path, settings):
   code_base_path = os.path.join(base_path)
@@ -672,6 +708,8 @@ def __initialize_worker(base_path, settings):
   for filename in initial_files:
     with open(os.path.join(code_base_path, filename), "w") as file:
       file.write(initial_files[filename])
+
+
 
 def handle_remove(args):
   object_lower = str(args.object).lower()

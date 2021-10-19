@@ -373,7 +373,7 @@ services:
       - ${BASEDIR}${REGISTRY}:/registry:cached
       - ${BASEDIR}${DATA}:/data:rw
       - ${BASEDIR}${LOGS}:/logs:rw
-      - settings.json:/settings.json
+      - ./settings.json:/settings.json
 
   orthanc:
     image: giesekow/dcm-processor-orthanc:${IMAGE_VERSION}
