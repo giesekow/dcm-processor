@@ -1,4 +1,5 @@
 .vscode
 .env
 mapped_folders
+test
 **/__pycache__
