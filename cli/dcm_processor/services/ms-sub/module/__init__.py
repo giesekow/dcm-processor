@@ -21,13 +21,17 @@ def worker(jobName, headers, params, added_params, **kwargs):
         if str(pps).lower().find("mssub") >= 0:
           sel_series.append({"seriesId": s, "studyDate": int(studydate)})
 
-    sel_series = sorted(sel_series, key=lambda x: x.get("studyDate"))
+    sel_series = sorted(sel_series, key=lambda x: x.get("studyDate"), reverse=True)
 
     if len(sel_series) >= 2:
       pre_series = sel_series[0].get("seriesId")
       post_series = sel_series[1].get("seriesId")
       conversions = added_params.get("dcm2nii", {}).get("conversions", {})
       sub_file = added_params.get(jobName, {}).get("sub_file")
+
+      if not sub_file is None:
+        sub_file = os.path.join(DATA, sub_file)
+      
       pre_path = None
       post_path = None
 

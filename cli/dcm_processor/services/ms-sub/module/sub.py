@@ -70,7 +70,6 @@ def subtract(dcmpath, niftipath):
                 
 def process(pre_path, post_path, patient_folder, sub_file=None):   
   pre_reg_file = os.path.join(patient_folder,'pre_reg.nii.gz')
-  post_new = os.path.join(patient_folder,'post.nii.gz')
   
   if sub_file is None:
     sub_file = os.path.join(patient_folder,'sub.nii.gz')
@@ -91,5 +90,3 @@ def process(pre_path, post_path, patient_folder, sub_file=None):
   sub = post - pre_histmatch
 
   nib.save(nib.Nifti1Image(sub,pre_nib.affine,pre_nib.header),sub_file)
-
-  shutil.copyfile(post_path, post_new)
