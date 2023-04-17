@@ -1,0 +1,7 @@
+.vscode
+.env
+mapped_folders
+test
+venv
+package/images
+**/__pycache__
