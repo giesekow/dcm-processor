@@ -1,0 +1,7 @@
+SimpleITK
+numpy
+nibabel
+pydicom
+requests
+scikit-image
+chardet

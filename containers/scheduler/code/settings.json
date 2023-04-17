@@ -1,0 +1,40 @@
+{
+  "headerFields": ["PerformedProcedureStepDescription", "seriesId", "dcmpath", "SeriesDescription", "ContrastBolusAgent", "Modality", "ImageType", "PatientID", "SeriesNumber", "StudyDate"],
+  "preServices": [
+    {
+      "jobName": "dicomAnonymizer",
+      "worker": "base.DicomAnonymizerService.worker",
+      "callback": "base.dicomAnonymizer",
+      "dependsOn": null,
+      "channel": "default",
+      "timeout": "1h",
+      "params": {},
+      "sortPosition": 0,
+      "description": "Dicom Anonymizer Service"
+    }
+  ],
+  "postServices":[
+    {
+      "jobName": "storageManager",
+      "worker": "base.storageManager.worker",
+      "callback": "base.storageManager",
+      "dependsOn": null,
+      "channel": "default",
+      "timeout": "1h",
+      "params": {},
+      "sortPosition": 0,
+      "description": "Storage Service"
+    },
+    {
+      "jobName": "systemClearner",
+      "worker": "base.systemcleaner.worker",
+      "callback": "base.systemcleaner",
+      "dependsOn": "storageManager",
+      "channel": "default",
+      "timeout": "1h",
+      "params": {},
+      "sortPosition": 1,
+      "description": "System Cleaning Service"
+    }
+  ]
+}

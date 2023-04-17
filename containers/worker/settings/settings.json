@@ -1,0 +1,15 @@
+{
+  "name": "base",
+  "scripts": ["script.sh"],
+  "entryScriptPaths": ["/scripts"],
+  "baseImage": "ubuntu:20.04",
+  "environments": [
+    {
+      "name": "base",
+      "requirements": ["requirements.txt"],
+      "entryRequirementPaths": ["/requirements"],
+      "channels": ["default"],
+      "pythonVersion": "3.9"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Berlin
+
+WORKDIR /app
+
+
+# Copy script files
+COPY entrypoint.sh ./
+COPY install.py ./
+COPY start.py ./
+COPY envs.py ./
+
+RUN mkdir -p /settings
+RUN mkdir -p /environments
+
+COPY ./settings/. /settings/.
+
+# Install all required dependencies
+
+RUN apt-get update && \
+    apt-get install -y software-properties-common tzdata git && \
+    apt-get update -y && \
+    apt-get install -y python3.9 python3-pip python3-venv python3-distutils && \
+    ln -s /usr/bin/python3.9 /usr/bin/python && \
+    python -m pip install click==7.1.2 mongo-qas argh pyyaml virtualenv --trusted-host=pypi.python.org --trusted-host=pypi.org --trusted-host=files.pythonhosted.org --default-timeout=100
+
+RUN python install.py
+
+CMD ["bash", "entrypoint.sh"]
