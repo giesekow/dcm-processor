@@ -109,3 +109,6 @@ A dicom processing library setup with docker containers.
 ## REMOVE WORKER
 1. Run command below and follow prompt to remove a worker.  
 `dcm-processor remove worker`
+
+## TO DOS
+1. Add documentation for non-interactive (-o) mode.
