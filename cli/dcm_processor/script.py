@@ -41,15 +41,15 @@ def handle_installer(args, inst, question, baseDir, isWorker=False):
     if inst == "git" or inst == "web":
       questions.append(inq.Text("object_path", message=question + " (git/web url)"))
       if isWorker:
-        questions.append(inq.Text("sub_path", message="Repository sub-folder", default="worker"))
+        questions.append(inq.Text("sub_path", message="Repository sub-folder", default="./"))
       else:
-        questions.append(inq.Text("sub_path", message="Repository sub-folder", default="service"))
+        questions.append(inq.Text("sub_path", message="Repository sub-folder", default="./"))
     else:
       questions.append(inq.Path("object_path", message=question, exists=True, path_type=inq.Path.DIRECTORY, normalize_to_absolute_path=True))
 
     answers = inq.prompt(questions)
     object_path = answers['object_path']
-    sub_path = answers['sub_path']
+    sub_path = answers.get('sub_path')
   else:
     object_path = args.object_path
     sub_path = './' if args.sub_path is None else args.sub_path
