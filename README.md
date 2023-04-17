@@ -7,9 +7,10 @@ A dicom processing library setup with docker containers.
 2. Docker Compose  (you can install with `pip` package manager with the command `pip install docker-compose`)
 
 ### NOTES ON DEPENDENCIES
-1. Current user should have access to execute docker commands without sudo. This can be normally achieved in linux with the command below:  
+1. Current version of the library supports only unix (linux and macOS). However the library was developed and well tested on Ubuntu 20.04.
+2. Current user should have access to execute docker commands without sudo. This can be normally achieved in linux with the command below:  
 `sudo usermod -aG docker $USER`
-2. You need to make sure you have the current version of `docker-compose` installed.
+3. You need to make sure you have the current version of `docker-compose` installed.
 
 
 ## INSTALLATION
@@ -112,3 +113,6 @@ A dicom processing library setup with docker containers.
 
 ## TO DOS
 1. Add documentation for non-interactive (-o) mode.
+2. Add autostart function to start applications at boot time.
+3. Support windows environment.
+4. Run tests on other linux systems.
