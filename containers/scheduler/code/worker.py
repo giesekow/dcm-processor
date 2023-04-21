@@ -47,6 +47,8 @@ def load_config(names=[]):
                         if names.count(jobname) > 0:
                             logger.error(f"Duplicate Job Name: {jobname}")
                             continue
+                        if c.get("disabled", False):
+                            continue
                         data.append(c)
                         names.append(jobname)
 
@@ -58,6 +60,8 @@ def load_config(names=[]):
 
                         if names.count(jobname) > 0:
                             logger.error(f"Duplicate Job Name: {jobname}")
+                            continue
+                        if config.get("disabled", False):
                             continue
                         data.append(config)
                         names.append(jobname)
@@ -167,11 +171,17 @@ def check_jobs(jobs):
     for job in jobs:
         if ("jobName" in job) and ("worker" in job) and ("callback" in job):
             jobname = job.get("jobName")
+            
             if not "sortPosition" in job:
                 job["sortPosition"] = 1
+            
             if names.count(jobname) > 0:
                 logger.error(f"Duplicate Job Name: {jobname}")
                 continue
+            
+            if job.get("disabled", False):
+                continue
+
             data.append(job)
             names.append(jobname)
     return data, names

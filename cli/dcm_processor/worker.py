@@ -18,6 +18,8 @@ RUN mkdir -p /environments
 
 COPY ./settings/. /settings/.
 
+#COPIES
+
 # Install all required dependencies
 
 RUN apt-get update && \

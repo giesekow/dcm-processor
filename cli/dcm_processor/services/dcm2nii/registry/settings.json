@@ -9,7 +9,7 @@
     "params": {
       "clean": true
     },
-    "sortPosition": 0,
+    "sortPosition": -999,
     "description": "Dicom to Nifti Service"
   }
 ]

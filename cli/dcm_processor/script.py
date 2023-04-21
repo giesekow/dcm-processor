@@ -287,8 +287,8 @@ def create_worker(args):
     questions = [
       inq.Text("worker_name", message="Enter worker name"),
       inq.Path("worker_path", message="Enter workers folder", exists=True, path_type=inq.Path.DIRECTORY, normalize_to_absolute_path=True),
-      inq.Text("worker_base_image", message="Enter worker base image", default="ubuntu:18.04"),
-      inq.Text("worker_python_version", message="Enter worker python version", default="3.7"),
+      inq.Text("worker_base_image", message="Enter worker base image", default="ubuntu:20.04"),
+      inq.Text("worker_python_version", message="Enter worker python version", default="3.9"),
       inq.Text("channels", message="Enter job channels (comma separated)", default="default"),
       inq.Text("worker_description", message="Enter worker description"),
     ]
@@ -316,6 +316,7 @@ def create_worker(args):
     "scripts": ["script.sh"],
     "entryScriptPaths": ["/scripts"],
     "baseImage": base_image,
+    "copies": [],
     "environments": [
       {
         "name": "base",
@@ -871,8 +872,20 @@ def __initialize_worker(base_path, settings):
 
   base_image = settings.get("baseImage", "ubuntu:18.04")
 
+  dockerfile = WORKER.DOCKERFILE.replace("BASE_IMAGE", base_image)
+
+  if "copies" in settings:
+    copies = settings.get("copies", [])
+    copy_str = ''
+    for c in copies:
+      src = c.get("source")
+      dest = c.get("destination")
+      copy_str = f"{copy_str}COPY {src} {dest}\n"
+  
+    dockerfile = dockerfile.replace("#COPIES", f"# COPY OTHER FILES HERE\n{copy_str}")
+
   initial_files = {
-    "Dockerfile": WORKER.DOCKERFILE.replace("BASE_IMAGE", base_image),
+    "Dockerfile": dockerfile,
     "entrypoint.sh": WORKER.ENTRYPOINT,
     "envs.py": WORKER.ENVS,
     "install.py": WORKER.INSTALL,
