@@ -20,6 +20,9 @@ def anonymize(path, params=None):
     for file in f:
       series.append(os.path.join(r,file))
 
+  if len(series) == 0:
+    return
+    
   ptid = pydicom.dcmread(series[0]).PatientID
   
   if os.path.isfile(pseudonyms_table):

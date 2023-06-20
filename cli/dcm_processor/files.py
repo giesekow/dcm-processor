@@ -11,7 +11,8 @@ DASHBOARD_AUTH = """
 
 SETTINGS = """
 {
-  "headerFields": ["SeriesInstanceUID", "ImagePositionPatient", "ImageOrientationPatient", "PerformedProcedureStepDescription", "seriesId", "dcmpath", "SeriesDescription", "ContrastBolusAgent", "Modality", "ImageType", "PatientID", "SeriesNumber", "StudyDate", "ImageComments"],
+  "fullTags": true,
+  "headerFields": ["SeriesInstanceUID", "ImagePositionPatient", "ImageOrientationPatient", "PerformedProcedureStepDescription", "seriesId", "dcmpath", "SeriesDescription", "ContrastBolusAgent", "Modality", "ImageType", "PatientID", "SeriesNumber", "StudyDate", "ImageComments", "BodyPartExamined"],
   "preServices": [
     {
       "jobName": "dicomAnonymizer",
@@ -21,6 +22,7 @@ SETTINGS = """
       "channel": "default",
       "timeout": "1h",
       "params": {
+        "clean": true,
         "fhir": {
           "interface_url": "",
           "auth_server_url": "",
@@ -41,7 +43,9 @@ SETTINGS = """
       "dependsOn": null,
       "channel": "default",
       "timeout": "1h",
-      "params": {},
+      "params": {
+        "store_data": false
+      },
       "sortPosition": 0,
       "description": "Storage Service"
     },
@@ -320,14 +324,15 @@ ORTHANC_REST_USERNAME=dcm-processor
 ORTHANC_REST_PASSWORD=dcm-processor
 ORTHANC_REST_URL=http://orthanc:8042
 ORTHANC_DEFUALT_STORE=pac
+ORTHANC_LOGLEVEL=2
 CLEAN_ORTHANC=0
 
 ORTHANC_DICOM_PORT=4242
 ORTHANC_BROWSER_PORT=8042
 DASHBOARD_PORT=5000
 SUPPORTED_MODALITY=CT,MR
-ACCEPTED_FILES=primary
-JUNK_FILES=sbi,surv,bersi,racker,ssde,results,mip,mono,spectal,scout,localizer,lokali,konturen,sectrareconstruction,zeffect,iodoinekein,smartplan,doseinf
+ACCEPTED_FILES=primary,original
+JUNK_FILES=derived,projection,sbi,surv,bersi,racker,ssde,results,mip,mono,spectal,scout,localizer,lokali,konturen,sectrareconstruction,zeffect,iodoinekein,smartplan,doseinf
 NO_PROXY=scheduler,orthanc,mongo,localhost,127.0.0.*
 
 JOBS_CONNECTION=mongodb://mongo:27017/
@@ -430,9 +435,10 @@ services:
       - ${ORTHANC_DICOM_PORT}:4242
       - ${ORTHANC_BROWSER_PORT}:8042
     volumes:
-      - orthanc-db:/var/lib/orthanc/db                # Persitent Orthanc DB
-      - orthanc-dblight:/var/lib/orthanc/dblight      # Persitent Orthanc DB
-      - ${BASEDIR}${DATA}:/tmp/nifti:rw               # Temp folder
+      - orthanc-db:/var/lib/orthanc/db
+      - orthanc-dblight:/var/lib/orthanc/dblight
+      - ${BASEDIR}${DATA}:/data:rw
+      - ${BASEDIR}${LOGS}:/logs:rw
     secrets:
       - orthanc.json
     environment:
@@ -443,6 +449,9 @@ services:
       ACCEPTED_FILES: ${ACCEPTED_FILES}
       NO_PROXY: ${NO_PROXY}
       no_proxy: ${NO_PROXY}
+      DATA: /data
+      LOGS: /logs
+      LOGLEVEL: ${ORTHANC_LOGLEVEL}
 
 secrets:
   orthanc.json:
@@ -495,9 +504,9 @@ ORTHANC = """
 
   // List of paths to the custom Lua scripts that are to be loaded
   // into this instance of Orthanc
-
-  "PythonScript": "/scripts/Callback.py",
-  "PythonVerbose": false,
+  "LuaScripts": [
+    "/scripts/dicom_listener.lua"
+  ],
 
   // List of paths to the plugins that are to be loaded into this
   // instance of Orthanc (e.g. "./libPluginTest.so" for Linux, or
@@ -912,7 +921,8 @@ ORTHANC = """
     "0405,1003": ["ST", "ActionType", 1, 1, "DCM-PROCESSOR"],
     "0405,1005": ["ST", "ActionSource", 1, 1, "DCM-PROCESSOR"],
     "0405,1007": ["ST", "ActionDestination", 1, 1, "DCM-PROCESSOR"],
-    "0405,1009": ["ST", "ReferenceSeries", 1, 1, "DCM-PROCESSOR"]
+    "0405,1009": ["ST", "ReferenceSeries", 1, 1, "DCM-PROCESSOR"],
+    "0405,1011": ["ST", "DcmProcessorStatus", 1, 1, "DCM-PROCESSOR"]
   },
 
   // Whether to run DICOM C-Move operations synchronously. If set to
@@ -948,7 +958,7 @@ ORTHANC = """
   // instance replaces the old one. If set to "false", the new
   // instance is discarded and the old one is kept. Up to Orthanc
   // 1.4.1, the implicit behavior corresponded to "false".
-  "OverwriteInstances": false,
+  "OverwriteInstances": true,
 
   // Maximum number of ZIP/media archives that are maintained by
   // Orthanc, as a response to the asynchronous creation of archives.

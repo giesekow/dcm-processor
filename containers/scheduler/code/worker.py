@@ -251,7 +251,12 @@ def modify_tags(data, keys):
 
 def process_main(data):
     settings = load_system_config()
-    headers = modify_tags(data, settings.get("headerFields", []))
+    full_tags = settings.get("fullTags", False)
+    
+    if not full_tags:
+        headers = modify_tags(data, settings.get("headerFields", []))
+    else:
+        headers = data
 
     preJobs, preJobNames = [[], []]
     postJobs, postJobNames = [[], []]

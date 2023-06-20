@@ -3,7 +3,9 @@ import os
 def dicomAnonymizer(jobName, headers, params, added_params, **kwargs):
   injected_params = {}
 
-  if "id" in headers:
+  clean = params.get("clean", False)
+
+  if clean and "id" in headers:
     patientId = headers.get("id")
     injected_params["deleted"] = [os.path.join("dicom", patientId)]
   

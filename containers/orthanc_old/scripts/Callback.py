@@ -1,4 +1,3 @@
-from pprint import pprint
 import orthanc
 import json, os, requests
 import threading, copy
@@ -60,7 +59,8 @@ def stablePatient(patientId, pending_instances):
 
     headers = {}
     headers["Content-Type"] = "application/json"
-    response = requests.post(urlAddress, json=data, headers=headers)
+    proxies = {"http": "", "https": ""}
+    response = requests.post(urlAddress, json=data, headers=headers, proxies=proxies)
     if response.status_code != 200:
       print(response.reason, flush=True)
 
@@ -74,6 +74,12 @@ def process_series(seriesId, baseDir, pending_instances):
   
   if len(instances) > 3:
     data = json.loads(orthanc.RestApiGet(f"/instances/{instances[0]}/simplified-tags"))
+    hds = json.loads(orthanc.RestApiGet(f"/instances/{instances[0]}/header"))
+
+    for hd in hds:
+      d = hds.get(hd, {})
+      data[d.get("Name")] = d.get("Value")
+
     ActionSource = data.get("ActionSource")
 
     if not ActionSource is None:
@@ -216,6 +222,11 @@ def remove_unlabelled_localizers(instances):
 
   for instance in instances:
     tags = json.loads(orthanc.RestApiGet(f"/instances/{instance}/simplified-tags"))
+    hds = json.loads(orthanc.RestApiGet(f"/instances/{instance}/header"))
+
+    for hd in hds:
+      d = hds.get(hd, {})
+      tags[d.get("Name")] = d.get("Value")
     
     is_valid = _is_valid_imaging_dicom(tags, instance)
     
@@ -250,7 +261,7 @@ def _is_valid_imaging_dicom(header, instance):
   # if it is philips and multiframe dicom then we assume it is ok
   try:
     if is_manufacturer(header, 'philips'):
-      if is_multiframe_dicom(instance):
+      if is_multiframe_dicom(header):
         return True
     if "SeriesInstanceUID" not in header:
       return False
@@ -288,13 +299,22 @@ def is_manufacturer(header, manufucturer):
 
   return True
 
-def is_multiframe_dicom(instance):
-  try:
-    tag_value = orthanc.RestApiGet(f"/instances/{instance}/content/0002-0002")
-    if tag_value == '1.2.840.10008.5.1.4.1.1.4.1':
+def is_multiframe_dicom(header):
+  tag_value = header.get('MediaStorageSOPClassUID', header.get('SOPClassUID'))
+
+  if tag_value is None:
+    return False
+
+  if tag_value == '1.2.840.10008.5.1.4.1.1.4.1' or tag_value == '1.2.840.10008.5.1.4.1.1.2.1':
+    return True
+  
+  if "SharedFunctionalGroupsSequence" in header:
+    if len(header.get("SharedFunctionalGroupsSequence")) > 1:
       return True
-  except Exception as e:
-    print(f"ACCESS ERROR: {e}")
+    
+  if "PerFrameFunctionalGroupsSequence" in header:
+    if len(header.get("PerFrameFunctionalGroupsSequence")) > 1:
+      return True
     
   return False
 

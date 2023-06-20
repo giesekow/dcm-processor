@@ -5,3 +5,4 @@ test
 venv
 package/images
 **/__pycache__
+wheels

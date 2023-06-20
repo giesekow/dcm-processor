@@ -3,6 +3,7 @@ import json
 import time
 import sys
 from datetime import datetime
+from pprint import pprint
 
 def get_config(params = None):
   config_dict = None
@@ -94,13 +95,35 @@ def get_fhir_pseudonym(ptid, params):
   if (interface_url is None) or (auth_server_url is None) or (client_id is None) or (client_secret is None) or (identifier_system is None):
     return None
   
+  print("CREATING PATIENT ENTRY")
   pat_entry = create_fhir_entry("Patient", identifier_system, ptid)
   
+  print("CREATING BUNDLE")
   bundle = create_fhir_bundle([pat_entry,])
   
   try:
+    print("GETTING PSEUDONONYMIZED BUNDLE")
     pse_bundle = get_pseudononymized_bundle(auth_server_url, client_id, client_secret, interface_url, bundle)
+    print("GETTING PSEUDONONYMS FROM BUNDLE")
     pse_dict = get_pseudonyms_from_bundle(pse_bundle)
+    print(f"RETURNED PSEUDONYMS: {pse_dict}")
     return pse_dict
   except Exception as e:
+    print(f"ERROR {e}")
     return None
+  
+
+def main():
+  ptid = sys.argv[1]
+  jsonFile = sys.argv[2]
+
+  with open(jsonFile, 'r') as jsfile:
+    data = json.load(jsfile)
+    params = {"fhir": data}
+    get_fhir_pseudonym(params=params, ptid=ptid)
+
+
+if __name__ == "__main__":
+  main()
+
+# call it with patientId and path to json file containing settings.

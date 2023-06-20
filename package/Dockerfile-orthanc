@@ -1,8 +1,15 @@
-FROM jodogne/orthanc-python:latest
+FROM jodogne/orthanc-plugins:1.6.1
 
 COPY ./scripts/. /scripts/.
 
-RUN apt-get update
-RUN apt-get install -y python3-pip
+ENV LUA_PATH="./?.lua;/usr/local/share/lua/5.3/?.lua;/usr/local/share/lua/5.3/?/init.lua;/usr/local/lib/lua/5.3/?.lua;/usr/local/lib/lua/5.3/?/init.lua;/usr/share/lua/5.3/?.lua;/usr/share/lua/5.3/?/init.lua;/root/luarocks-3.9.2/./lua_modules/share/lua/5.3/?.lua"
+ENV LUA_CPATH="./?.so;/usr/local/lib/lua/5.3/?.so;/usr/lib/x86_64-linux-gnu/lua/5.3/?.so;/usr/lib/lua/5.3/?.so;/usr/local/lib/lua/5.3/loadall.so;/root/luarocks-3.9.2/./lua_modules/lib/lua/5.3/?.so"
 
-RUN pip3 install requests numpy --trusted-host=pypi.org --trusted-host=files.pythonhosted.org --default-timeout=100
+RUN sed -i 's/stable\/updates/stable-security\/updates/' /etc/apt/sources.list && apt-get update && \
+    apt-get install -y vim build-essential unzip liblua5.3-dev lua5.3 && \
+    wget https://luarocks.github.io/luarocks/releases/luarocks-3.9.2.tar.gz && \
+    tar zxpf luarocks-3.9.2.tar.gz && \
+    cd luarocks-3.9.2 && \
+    ./configure && make && make install && \
+    luarocks install lsqlite3complete && \
+    luarocks install luasocket

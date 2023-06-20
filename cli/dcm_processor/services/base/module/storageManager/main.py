@@ -102,19 +102,24 @@ def post_nifti_to_orthanc(path, filefmt, destination, added_tags, seriesId, base
       dicom_meta += [("0405|0010", "DCM-PROCESSOR"), ("0405|1001", action), ("0405|1003", filefmt), ("0405|1005", "dcm-processor"), ("0405|1007", destination), ("0405|1009", seriesId)]
 
       #Set Series Description
-      dicom_meta.append(("0008|103e", "Processed Information"))
+      dicom_meta.append(("0008|103e", "dcm-processor-temp"))
+      actual_series_description = "Processed Information"
 
       h_codes = load_header_codes()
       for k in added_tags:
         if k in h_codes:
-          dicom_meta.append((h_codes[k], added_tags[k]))
+          if k == "SeriesDescription":
+            actual_series_description = added_tags[k]
+          else:
+            dicom_meta.append((h_codes[k], added_tags[k]))
+
 
       nifti_to_dicom(path, outpath ,dicom_meta)
 
       series_id = import_dicom_to_orthanc(outpath, url, ORTHANC_REST_USERNAME, ORTHANC_REST_PASSWORD)
       if (not series_id is None) and (not destination is None):
         time.sleep(2)
-        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": action, "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId})
+        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": action, "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId, "0008-103e": actual_series_description})
         
   os.system(f"rm -rf {outpath}")
 
@@ -135,6 +140,9 @@ def post_dicom_to_orthanc(path, filefmt, destination ,added_tags, seriesId, base
       dicom_tags = requests.get(url + "/instances/" + instanceId + "/content", auth=authOrthanc, headers=header)
       tags = dicom_tags.json()
       dicom_meta = {}
+      
+      actual_series_description = ""
+
       for tag in tags:
         if tag not in COPY_TAGS:
           continue
@@ -149,7 +157,10 @@ def post_dicom_to_orthanc(path, filefmt, destination ,added_tags, seriesId, base
           dicom_meta[h_codes[k]] = added_tags[k]
 
 
-      dicom_meta.update({"0405-0010": "DCM-PROCESSOR", "0405-1001": action, "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId})
+      if "0008-103e" in dicom_meta:
+        actual_series_description = dicom_meta["0008-103e"]
+
+      dicom_meta.update({"0405-0010": "DCM-PROCESSOR", "0405-1001": action, "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId, "0008-103e": "dcm-processor-temp"})
 
       output = os.path.join(base_folder, seriesId)
       os.system(f"mkdir -p {output}")
@@ -161,7 +172,7 @@ def post_dicom_to_orthanc(path, filefmt, destination ,added_tags, seriesId, base
 
       if (not series_id is None) and (not destination is None):
         time.sleep(2)
-        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": action, "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId})
+        patch_series_private_meta(series_id, {"0405-0010": "DCM-PROCESSOR", "0405-1001": action, "0405-1003": filefmt, "0405-1005": "dcm-processor", "0405-1007": destination, "0405-1009": seriesId, "0008-103e": actual_series_description})
 
 
 def patch_series_private_meta(seriesId, tags):
@@ -207,6 +218,9 @@ def process_storage(storages, headers, params, added_params, **kwargs):
 
       destination = store.get("destination", DEFAULT_STORE)
       action = "store-data" if store.get("permanent", False) else "orthanc-only"
+
+      if not params.get("store_data", False):
+        action = "orthanc-only"
 
       if "tags" in store:
         t = store.get("tags")
@@ -260,6 +274,13 @@ def process_storage(storages, headers, params, added_params, **kwargs):
 
 
 def worker(jobName, headers, params, added_params, **kwargs):
+  
+  if not params is None:
+    disabled = params.get("disabled", False)
+
+    if disabled:
+      return
+  
   try:
     for j in list(added_params.values()):
       if "storage" in j:

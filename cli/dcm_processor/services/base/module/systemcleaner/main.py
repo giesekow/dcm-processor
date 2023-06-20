@@ -4,6 +4,12 @@ DATA = os.getenv('DATA', '/data')
 CLEAN_ORTHANC = os.getenv('CLEAN_ORTHANC', 0)
 
 def worker(jobName, headers, params, added_params, **kwargs):
+
+  if not params is None:
+    disabled = params.get("disabled", False)
+    if disabled:
+      return
+
   try:
     for j in list(added_params.values()):
       if "deleted" in j:
