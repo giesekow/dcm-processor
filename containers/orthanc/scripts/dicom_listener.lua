@@ -8,6 +8,7 @@ SUPPORTED_MODALITY = os.getenv("SUPPORTED_MODALITY") or "CT,MR"
 
 JUNK_FILES = os.getenv("JUNK_FILES") or {"sbi","surv","bersi","racker","ssde","results", "mip", "mono", "spectal", "scout", "localizer", "lokali", "konturen", "sectrareconstruction", "zeffect", "iodoinekein", "smartplan", "doseinf"}
 ACCEPTED_FILES = os.getenv("ACCEPTED_FILES") or "primary"
+INSTANCE_REQUIRED_TAGS = os.getenv("INSTANCE_REQUIRED_TAGS") or {"SeriesInstanceUID", "InstanceNumber", "ImageOrientationPatient", "ImagePositionPatient"}
 
 function LogInfo(tag, msg)
    local timestamp = os.date('%Y-%m-%d %H:%M:%S')
@@ -471,7 +472,7 @@ function ReceivedInstanceFilter(dicom, origin, info)
       return true
    end
 
-   local reqTags = {"SeriesInstanceUID", "InstanceNumber", "ImageOrientationPatient", "ImagePositionPatient"}
+   local reqTags = MaybeSplit(INSTANCE_REQUIRED_TAGS, ",")
 
    for i, tg in pairs(reqTags) do
       if not Contains(dicom, tg) then

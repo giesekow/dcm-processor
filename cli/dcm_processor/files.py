@@ -333,6 +333,7 @@ DASHBOARD_PORT=5000
 SUPPORTED_MODALITY=CT,MR
 ACCEPTED_FILES=primary,original
 JUNK_FILES=derived,projection,sbi,surv,bersi,racker,ssde,results,mip,mono,spectal,scout,localizer,lokali,konturen,sectrareconstruction,zeffect,iodoinekein,smartplan,doseinf
+INSTANCE_REQUIRED_TAGS=SeriesInstanceUID,InstanceNumber,ImageOrientationPatient,ImagePositionPatient
 NO_PROXY=scheduler,orthanc,mongo,localhost,127.0.0.*
 
 JOBS_CONNECTION=mongodb://mongo:27017/
@@ -447,6 +448,7 @@ services:
       SUPPORTED_MODALITY: ${SUPPORTED_MODALITY}
       JUNK_FILES: ${JUNK_FILES}
       ACCEPTED_FILES: ${ACCEPTED_FILES}
+      INSTANCE_REQUIRED_TAGS: ${INSTANCE_REQUIRED_TAGS}
       NO_PROXY: ${NO_PROXY}
       no_proxy: ${NO_PROXY}
       DATA: /data
